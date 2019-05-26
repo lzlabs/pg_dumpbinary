@@ -1,0 +1,78 @@
+=head1 NAME
+
+pg_restorebinary - Restore a dump generated with pg_dumpbinary.
+
+=head1 SYNOPSIS
+
+Program used to restore a PostgreSQL database dumped in binary format.
+The dumps to restored must be generated using command pg_restorebinary.
+
+Program used to restore a PostgreSQL binary dump generated with pg_dumpbinary.
+It can not be used to restore other PostgreSQL dump.
+
+usage: pg_restorebinary [options] -d dbname backup_dir
+
+  backup_dir   directory where dump files to restore will be read.
+               It must be a directory created by pg_dumpbinary.
+options:
+
+  -d, --database dbname database where the dump must be restore, must exists.
+  -h, --host ip         ip or hostname of the PostgreSQL instance to connect.
+  -j, --job nproc       number of cores to use to parallelize restoration.
+  -i, --info            print information about the dump and exit.
+  -p, --port port       port number to connect to PostgreSQL, default: 5432.
+  -u, --user username   user to log into PostgreSQL database.
+  -v, --version         show program version.
+  --help                show usage.
+
+=head1 DESCRIPTION
+
+pg_restorebinary is a tool used to restore a PostgreSQL database dumped
+using pg_dumpbinary command in binary format. 
+
+The program read the directory given as parameter for the backup then it
+restore pre-data in the database given at -d option. Once it is done it
+proceed to data import. All data file are uncompressed on the fly and sent
+to a psql command using COPY SQL order like:
+
+    COPY my_table FROM stdin WITH (FORMAT binary);
+
+Then post-data section are imported into the new database.
+
+=head1 BACKUP INFORMATION
+
+pg_restorebinary allow to extract some meta information from a backup generated
+by pg_dumpbinary using the -i option.
+
+    perl pg_restorebinary -i t/test_bin_dump
+    ; Archive created at 2019-05-25 16:10:09 CEST
+    ;     dbname: test_bin_dump_orig
+    ;     Dumped from database version: 11.3 (Ubuntu 11.3-1.pgdg18.04+1)
+    ;     Number of tables to retore: 4 
+
+
+=head1 PARALLEL PROCESSING
+
+pg_restorebinary is very performant to restore the backup as it can parallelize
+the import of all tables following the number of simultaneous process you want
+to use. The behaviour is like the -j option of pg_dump in directory format. 
+
+To enable parallel processing you just have to use the -j N option where N
+is the number of cores you want to use.
+
+The parallelism is also used to restore post-data section (indexes, constraints).
+
+=head1 TODO
+
+Add the ability to select tables or schemas to restore.
+
+=head1 AUTHORS
+
+Gilles Darold.
+
+=head1 LICENSE
+
+pg_restorebinary is free software distributed under the PostgreSQL Licence.
+
+Copyright (c) 2019, Gilles Darold
+

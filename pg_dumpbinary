@@ -1,0 +1,325 @@
+#!/usr/bin/perl
+#------------------------------------------------------------------------------
+#
+# pg_dumpbinary - Dump a PostgreSQL database using binary format for data.
+#
+# This program is open source, licensed under the PostgreSQL license.
+# For license terms, see the LICENSE file.
+#
+# Author: Gilles Darold
+# Copyright: (C) 2019 Gilles Darold - All rights reserved.
+#------------------------------------------------------------------------------
+use strict;
+
+use Getopt::Long  qw(:config bundling no_ignore_case_always);
+use POSIX qw(locale_h sys_wait_h _exit);
+use Time::HiRes qw/usleep/;
+
+my $VERSION = '1.0';
+my $PROGRAM = 'pg_dumpbinary';
+
+my $DBNAME = '';
+my $DBUSER = '';
+my $DBHOST = '';
+my $DBPORT = 5432;
+my @INC_SCHEMA = ();
+my @EXC_SCHEMA = ();
+my @INC_TABLE = ();
+my @EXC_TABLE = ();
+
+my $PGDUMP    = 'pg_dump';
+my $PGRESTORE = 'pg_restore';
+my $PSQL      = 'psql';
+my $PG_OPT    = '';
+my $PG_FILTER = '';
+my $JOBS      = 1;
+my $VER       = 0;
+my $HELP      = 0;
+
+my $interrupt = 0;
+my $child_count = 0;
+my %RUNNING_PIDS= ();
+
+####
+# Method used to fork as many child as wanted,
+# must be declared at top if the program.
+####
+sub spawn
+{
+	my $coderef = shift;
+
+	unless (@_ == 0 && $coderef && ref($coderef) eq 'CODE')
+	{
+		print "usage: spawn CODEREF";
+		exit 0;
+	}
+
+	my $pid;
+	if (!defined($pid = fork)) {
+		print STDERR "Error: cannot fork: $!\n";
+		return;
+	} elsif ($pid) {
+		$RUNNING_PIDS{$pid} = $pid;
+		return; # the parent
+	}
+	# the child -- go spawn
+	$< = $>;
+	$( = $); # suid progs only
+
+	exit &$coderef();
+}
+
+
+# With multiprocess we need to wait for all children
+sub wait_child
+{
+	my $sig = shift;
+
+	$interrupt = 1;
+
+	print STDERR "Received terminating signal ($sig)\n";
+	if ($^O !~ /MSWin32|dos/i) {
+		1 while wait != -1;
+		$SIG{INT} = \&wait_child;
+		$SIG{TERM} = \&wait_child;
+	}
+	_exit(0);
+}
+$SIG{INT} = \&wait_child;
+$SIG{TERM} = \&wait_child;
+
+$| = 1;
+
+GetOptions(
+	"d|database=s"       => \$DBNAME,
+	"h|host=s"           => \$DBHOST,
+	"j|jobs=s"           => \$JOBS,
+	"n|schema=s"         => \@INC_SCHEMA,
+	"N|exclude-schema=s" => \@EXC_SCHEMA,
+	"p|port=i"           => \$DBPORT,
+	"t|table=s"          => \@INC_TABLE,
+	"T|exclude-table=s"  => \@EXC_TABLE,
+	"u|user=s"           => \$DBUSER,
+	"v|version!"         => \$VER,
+	"help!"              => \$HELP,
+);
+
+if ($VER)
+{
+	print "$PROGRAM Version: v$VERSION\n";
+	exit 0;
+}
+
+&usage if ($HELP);
+
+if (!$DBNAME)
+{
+	&usage("ERROR: you must specify a database to dump, see -d option\n");
+}
+
+# Set pg_dump/psql option
+if ($DBHOST)
+{
+	$PG_OPT .= " -h $DBHOST";
+}
+if ($DBPORT)
+{
+	$PG_OPT .= " -p $DBPORT";
+}
+if ($DBUSER)
+{
+	$PG_OPT .= " -U $DBUSER";
+}
+
+# Set schema/table filter options
+&set_filter_option();
+
+# Set default output directory name
+my $CURDATE = get_current_date();
+my $OUTDIR = $ARGV[0] || 'binary_bkup_' . $CURDATE;
+
+# Create output directory
+if (!-d $OUTDIR)
+{
+	mkdir $OUTDIR or die "FATAL: can not create directory $OUTDIR, $!\n";
+}
+
+print "Database $DBNAME dump created at ", `date --rfc-3339=seconds`;
+
+# Dump database pre-data section
+print "Dumping pre data section\n";
+`$PGDUMP $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f $OUTDIR/pre-data.dmp`;
+if ($?) {
+	die "ERROR: pg_dump error to dump pre-data section.\n";
+}
+
+# Retrieve list of schema.tables to restore.
+my %tbl_list = get_table_list();
+
+# Call psql to execute COPY in gziped binary format
+foreach my $s (sort keys %tbl_list)
+{
+	for (my $i = 0; $i <= $#{$tbl_list{$s}}; $i++)
+	{
+		# Proceed to parallel dump if required
+		while ($child_count >= $JOBS)
+		{
+			my $kid = waitpid(-1, WNOHANG);
+			if ($kid > 0)
+			{
+				$child_count--;
+				delete $RUNNING_PIDS{$kid};
+			}
+			usleep(50000);
+		}
+		last if ($interrupt);
+
+		print "Dumping data from table $s.$tbl_list{$s}[$i]\n";
+		spawn sub
+		{
+			my $sch = quotemeta($s);
+			my $tbl = quotemeta($tbl_list{$s}[$i]);
+			`$PSQL $PG_OPT -d $DBNAME -c "COPY \\"$sch\\".\\"$tbl\\" TO stdout WITH (FORMAT binary);" | gzip -c - > "$OUTDIR/data-$sch.$tbl.bin.gz"`;
+			if ($?) {
+				$interrupt = 1;
+				die "ERROR: psql error to dump data in binary mode.\n";
+			}
+		};
+		$child_count++;
+	}
+}
+
+# Wait for all child processes to localdie
+while (scalar keys %RUNNING_PIDS > 0)
+{
+        my $kid = waitpid(-1, WNOHANG);
+        if ($kid > 0) {
+                delete $RUNNING_PIDS{$kid};
+        }
+	usleep(50000);
+}
+
+exit(1) if ($interrupt);
+
+
+# Dump database post-data section
+print "Dumping post data section\n";
+`$PGDUMP $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=post-data -f $OUTDIR/post-data.dmp`;
+if ($?) {
+	die "ERROR: pg_dump error for post-data section.\n";
+}
+
+print "Dump ended at ", `date --rfc-3339=seconds`;
+
+exit 0;
+
+#----------------------------------------------------------------------------------
+
+####
+# Show program usage
+####
+sub usage
+{
+	my $msg = shift();
+
+	print qq{
+Program used to dump a PostgreSQL database with data dumped in binary
+format. The resulting dumps can be restored using pg_restorebinary.
+
+usage: pg_dumpbinary -d dbname [options] backup_name
+
+    backup_name   output directory where dump will be saved. Default
+                  directory name is binary_bkup_YYYY-MM-DDTHH:MM:SS
+		  when no output directory is provided.
+options:
+
+  -d, --database DBNAME        database to dump
+  -h, --host HOSTNAME          database server host or socket directory
+  -j, --job NUM                use this many parallel jobs to dump
+  -n, --schema SCHEMA          dump the named schema(s) only
+  -N, --exclude-schema SCHEMA  do NOT dump the named schema(s)
+  -p, --port PORT              database server port number, default: 5432
+  -t, --table TABLE            dump named relation
+  -T, --exclude-table TABLE    do NOT dump the named table
+  -u, --user NAME              connect as specified database user
+  -v, --version                show program version
+  --help                       show usage
+
+$msg
+};
+	exit 0;
+}
+
+####
+# Return a hash of array corresponding to the
+# list of tables per schema of the database.
+####
+sub get_table_list
+{
+	my %tb_lst = ();
+
+	# 197; 1259 57153 TABLE EZ0P T1 gilles
+	# 198; 1259 57159 TABLE public T1 gilles
+	my @list =  `$PGRESTORE -l $OUTDIR/pre-data.dmp | grep " TABLE "`;
+	chomp(@list);
+
+	foreach my $l (@list)
+	{
+		my @inf = split(/\s/, $l);
+		push( @{ $tb_lst{$inf[4]} }, $inf[5]);
+	}
+
+	return %tb_lst;
+}
+
+####
+# Return the date in ISO 8601 format minus the timezone part
+####
+sub get_current_date
+{
+	my $curdate = `date -Iseconds`;
+	chomp($curdate);
+	$curdate =~ s/[+-]\d{2}:\d{2}$//;
+
+	return $curdate;
+}
+
+####
+# Set schema/table option to use with pg_dump
+####
+sub set_filter_option
+{
+
+	if ($#INC_SCHEMA >= 0)
+	{
+		foreach my $s (@INC_SCHEMA)
+		{
+			$PG_FILTER .= " -n '$s'";
+		}
+	}
+
+	if ($#EXC_SCHEMA >= 0)
+	{
+		foreach my $s (@EXC_SCHEMA)
+		{
+			$PG_FILTER .= " -N '$s'";
+		}
+	}
+
+	if ($#INC_TABLE >= 0)
+	{
+		foreach my $s (@INC_TABLE)
+		{
+			$PG_FILTER .= " -t '$s'";
+		}
+	}
+
+	if ($#EXC_TABLE >= 0)
+	{
+		foreach my $s (@EXC_TABLE)
+		{
+			$PG_FILTER .= " -T '$s'";
+		}
+	}
+}
+

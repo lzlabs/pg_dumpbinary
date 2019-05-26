@@ -1,0 +1,10 @@
+LICENSE
+Makefile.PL
+MANIFEST
+META.yml
+pg_dumpbinary
+pg_restorebinary
+README.md
+doc/pg_dumpbinary.pod
+doc/pg_restorebinary.pod
+ChangeLog
