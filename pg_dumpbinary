@@ -258,14 +258,15 @@ sub get_table_list
 {
 	my %tb_lst = ();
 
-	# 197; 1259 57153 TABLE EZ0P T1 gilles
-	# 198; 1259 57159 TABLE public T1 gilles
 	my @list =  `$PGRESTORE -l $OUTDIR/pre-data.dmp | grep " TABLE "`;
 	chomp(@list);
 
 	foreach my $l (@list)
 	{
+		# 197; 1259 57153 TABLE EZ0P T1 gilles
+		next if ($l =~ /\d+: \d+ \d+ TABLE /);
 		my @inf = split(/\s/, $l);
+		next if ($#inf != 6);
 		push( @{ $tb_lst{$inf[4]} }, $inf[5]);
 	}
 
