@@ -125,13 +125,17 @@ options:
 
 ## Parallel processing
 
-pg_dumpbinary is very performant to generate the dump as it can parallelize
-the dump of all tables following the number of simultaneous process you
-want to use. The behaviour is like the -j option of pg_dump in directory
-format. 
+The speed of the dump can be improved by using parallelism during the
+export by pg_dumpbinary. Set option -j with the number of simultaneous
+process you want to use. The behaviour is like the -j option of pg_dump
+in directory format. 
 
-To enable parallel processing you just have to use the -j N option where N
-is the number of cores you want to use.
+The speed of the restoration can be improved by using parallelism during
+the call to pg_restorebinary. Set option -j with the number of simultaneous
+process you want to use. The behaviour is like the -j option of pg_restore.
+
+The parallelism is also used to restore post-data section for indexes and
+constraints.
 
 ## Binary format
 
