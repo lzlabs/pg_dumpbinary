@@ -41,6 +41,9 @@ The file is compressed on the fly using gzip.
 
 The backup can be restored using pg_restorebinary program.
 
+WARNING: be warn that the dump is not consistant yet so it must be done
+when there is no activity on the database. Consistant dump is a WIP.
+
 ## pg_restorebinary
 
 pg_restorebinary is a tool used to restore a PostgreSQL database dumped
@@ -143,6 +146,10 @@ pg_dumpbinary stores as binary format all tables data, it is fast but
 note that it is less portable across machine architectures and PostgreSQL
 versions. The binary format is very data type specific, it is not possible
 to import data in columns with a different type.
+
+## TODO
+
+Make consistant backup.
 
 ## Authors
 
