@@ -41,6 +41,16 @@ The file is compressed on the fly using gzip.
 
 The backup can be restored using pg_restorebinary program.
 
+pg_dumpbinary creates consistent backups, the database server needs to
+support synchronized snapshots, a feature that was introduced in PG 9.2
+for primary servers and 10 for standbys. pg_dumpbinary will refuse to
+dump database that do not respect these minimum versions.
+
+pg_dumpbinary -j uses multiple database connections; it connects to the
+database once with the master process to create a synchronized snapshot
+and dump the pre-data section. Once again for each worker job using the
+synchronized snapshot.
+
 ## pg_restorebinary
 
 pg_restorebinary is a tool used to restore a PostgreSQL database dumped
@@ -58,8 +68,9 @@ Then post-data section are imported into the new database.
 ## Installation
 
 pg_dumpbinary and pg_restorebinary are Perl program that do not require
-anything than Perl itself, the PostgreSQL command pg_dump, pg_restore
-and psql. Data are compressed using gzip.
+anything than Perl itself and module DBD::Pg. The PostgreSQL commands
+pg_dump, pg_restore and psql must be available through the PATH environment
+variable. Data are compressed using gzip.
 
 ```
 perl Makefile.PL

@@ -23,6 +23,4 @@ ok( $? == 0 && $ret eq '', "Good! No differences between source and destination 
 
 `rm -rf t/test_bin_dump`;
 `rm t/sql/db_test_new.sql`;
-#`dropdb test_bin_dump_orig >/dev/null 2>&1`;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
-

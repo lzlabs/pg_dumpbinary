@@ -61,12 +61,25 @@ The file is compressed on the fly using gzip.
 
 This backup can be restored using pg_restorebinary program.
 
+=head1 CONSISTENT BACKUP
+
+pg_dumpbinary creates consistent backups, the database server needs to
+support synchronized snapshots, a feature that was introduced in PG 9.2
+for primary servers and 10 for standbys. pg_dumpbinary will refuse to
+dump database that do not respect these minimum versions.
+
+pg_dumpbinary -j uses multiple database connections; it connects to the
+database once with the master process to create a synchronized snapshot
+and dump the pre-data section. Once again for each worker job using the
+synchronized snapshot.
+
 =head1 PARALLEL PROCESSING
 
 pg_dumpbinary is very performant to generate the dump as it can parallelize
 the dump of all tables following the number of simultaneous process you
 want to use. The behaviour is like the -j option of pg_dump in directory
-format. 
+format. Of course it is not as performant as a call to pg_dump in directory
+format.
 
 To enable parallel processing you just have to use the -j N option where N
 is the number of cores you want to use.

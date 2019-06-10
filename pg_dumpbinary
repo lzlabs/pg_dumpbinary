@@ -14,6 +14,10 @@ use strict;
 use Getopt::Long  qw(:config bundling no_ignore_case_always);
 use POSIX qw(locale_h sys_wait_h _exit);
 use Time::HiRes qw/usleep/;
+use File::Spec qw/ tmpdir /;
+use File::Temp qw/ tempfile /;
+use DBI;
+use DBD::Pg;
 
 my $VERSION = '1.0';
 my $PROGRAM = 'pg_dumpbinary';
@@ -27,6 +31,7 @@ my @EXC_SCHEMA = ();
 my @INC_TABLE = ();
 my @EXC_TABLE = ();
 
+my $TMP_DIR   = File::Spec->tmpdir() || '/tmp';
 my $PGDUMP    = 'pg_dump';
 my $PGRESTORE = 'pg_restore';
 my $PSQL      = 'psql';
@@ -39,6 +44,20 @@ my $HELP      = 0;
 my $interrupt = 0;
 my $child_count = 0;
 my %RUNNING_PIDS= ();
+
+my @post_conn = (
+	"SELECT pg_catalog.set_config('search_path', '', false);",
+	"SET client_encoding TO 'UTF8';",
+	"SET DATESTYLE = ISO;",
+	"SET INTERVALSTYLE = POSTGRES;",
+	"SET extra_float_digits TO 3;",
+	"SET synchronize_seqscans TO off;",
+	"SET statement_timeout = 0;",
+	"SET lock_timeout = 0;",
+	"SET idle_in_transaction_session_timeout = 0;",
+	"SET row_security = off;",
+	"BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY;"
+);
 
 ####
 # Method used to fork as many child as wanted,
@@ -146,10 +165,78 @@ if (!-d $OUTDIR)
 
 print "Database $DBNAME dump created at ", `date --rfc-3339=seconds`;
 
+# Set DBD::Pg options and connect to the database
+# to create the snapshot for a consistent backup
+my $dbpg_opt = '';
+$dbpg_opt .= ";port=$DBPORT" if ($DBPORT);
+$dbpg_opt .= ";host=$DBHOST" if ($DBHOST);
+my $dbh = DBI->connect("dbi:Pg:dbname=$DBNAME$dbpg_opt", $DBUSER, '', {AutoCommit => 1, AutoInactiveDestroy => 1});
+if (not defined $dbh)
+{
+	die "FATAL: can not connect to database $DBNAME\n";
+}
+
+# Verify that we have a PG >= 9.2
+my $sth = $dbh->prepare("SELECT version()") or die "FATAL: " . $dbh->errstr . "\n";
+$sth->execute or die "FATAL: " . $dbh->errstr . "\n";
+my $pgversion = 0;
+while (my $row = $sth->fetch)
+{
+	if ($row->[0] =~ /^[^\s]+ (\d+\.\d+)/)
+	{
+		$pgversion = $1;
+		$pgversion =~ s/\..*// if ($pgversion >= 10);
+	}
+}
+$sth->finish;
+
+# No way before PG 9.2
+if ($pgversion < 9.2)
+{
+	$dbh->disconnect();
+	die "FATAL: pg_dumpbinary require PG >= 9.2!\n";
+}
+
+# Be sure that the host is not in recovery mode or that we have PG >= 10
+$sth = $dbh->prepare("SELECT pg_catalog.pg_is_in_recovery()") or die "FATAL: " . $dbh->errstr . "\n";
+$sth->execute or die "FATAL: " . $dbh->errstr . "\n";
+my $is_in_recovery = 0;
+while (my $row = $sth->fetch)
+{
+	$is_in_recovery = $row->[0];
+}
+$sth->finish;
+if ($is_in_recovery && $pgversion < 10)
+{
+	$dbh->disconnect();
+	die "FATAL: PostgreSQL server is in recovery mode, this is not supported before PG 10.\n";
+}
+
+# Create a snapshot that will be reused with pg_dump for DDL and psql to retrieve data
+foreach my $q (@post_conn)
+{
+	$dbh->do("$q") or die "FATAL: " . $dbh->errstr . "\n";
+}
+$sth = $dbh->prepare("SELECT pg_catalog.pg_export_snapshot()") or die "FATAL: " . $dbh->errstr . "\n";
+$sth->execute or die "FATAL: " . $dbh->errstr . "\n";
+my $snapshot = ''; 
+while (my $row = $sth->fetch)
+{
+	$snapshot = $row->[0];
+}
+$sth->finish;
+if (!$snapshot)
+{
+	$dbh->disconnect();
+	die "FATAL: can not obtain a snapshot, please check what's going wrong.\n";
+}
+
 # Dump database pre-data section
 print "Dumping pre data section\n";
-`$PGDUMP $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f $OUTDIR/pre-data.dmp`;
-if ($?) {
+`$PGDUMP --snapshot='$snapshot' $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f $OUTDIR/pre-data.dmp`;
+if ($?)
+{
+	$dbh->disconnect();
 	die "ERROR: pg_dump error to dump pre-data section.\n";
 }
 
@@ -177,37 +264,68 @@ foreach my $s (sort keys %tbl_list)
 		print "Dumping data from table $s.$tbl_list{$s}[$i]\n";
 		spawn sub
 		{
-			my $sch = quotemeta($s);
-			my $tbl = quotemeta($tbl_list{$s}[$i]);
-			`$PSQL $PG_OPT -d $DBNAME -c "COPY \\"$sch\\".\\"$tbl\\" TO stdout WITH (FORMAT binary);" | gzip -c - > "$OUTDIR/data-$sch.$tbl.bin.gz"`;
-			if ($?) {
-				$interrupt = 1;
-				die "ERROR: psql error to dump data in binary mode.\n";
+			my $sch = $s;
+			my $tbl = $tbl_list{$s}[$i];
+			# Clone the connection to the database
+			my $dbh2 = $dbh->clone();
+			if (not defined $dbh2)
+			{
+				die "FATAL: can not connect to database $DBNAME\n";
 			}
+			# Apply session setting
+			foreach my $q (@post_conn)
+			{
+				$dbh2->do("$q") or die "FATAL: " . $dbh->errstr . "\n";
+			}
+			$dbh2->do("SET TRANSACTION SNAPSHOT '$snapshot';") or die "FATAL: " . $dbh2->errstr . "\n";
+			# Now execute COPY order
+			$dbh2->do("COPY \"$sch\".\"$tbl\" TO stdout WITH (FORMAT binary);")
+				or die "FATAL: " . $dbh2->errstr . "\n";
+			my $data = '';
+			my $fhout = new IO::File;
+			$fhout->open("| gzip -c - > \"$OUTDIR/data-\Q$sch\E.\Q$tbl\E.bin.gz\"")
+				or die "FATAL: can't write to $OUTDIR/data-$sch.$tbl.bin.gz, $!\n";
+			$fhout->binmode(":raw");
+			$fhout->autoflush(1);
+			while ($dbh2->pg_getcopydata($data) >= 0)
+			{
+				print $fhout $data;
+			}
+			$fhout->close();
+			$sth->finish;
+			$dbh2->disconnect() if (defined $dbh2);
 		};
 		$child_count++;
 	}
 }
 
+# Dump database post-data section
+if (!$interrupt)
+{
+	print "Dumping post data section\n";
+	`$PGDUMP --snapshot="$snapshot" $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=post-data -f $OUTDIR/post-data.dmp`;
+	if ($?)
+	{
+		$dbh->disconnect();
+		die "ERROR: pg_dump error for post-data section.\n";
+	}
+}
+
+# Disconnect from snapshot connection
+$dbh->disconnect;
+
 # Wait for all child processes to localdie
 while (scalar keys %RUNNING_PIDS > 0)
 {
         my $kid = waitpid(-1, WNOHANG);
-        if ($kid > 0) {
+        if ($kid > 0)
+	{
                 delete $RUNNING_PIDS{$kid};
         }
 	usleep(50000);
 }
 
 exit(1) if ($interrupt);
-
-
-# Dump database post-data section
-print "Dumping post data section\n";
-`$PGDUMP $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=post-data -f $OUTDIR/post-data.dmp`;
-if ($?) {
-	die "ERROR: pg_dump error for post-data section.\n";
-}
 
 print "Dump ended at ", `date --rfc-3339=seconds`;
 
