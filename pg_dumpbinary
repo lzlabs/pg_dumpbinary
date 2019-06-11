@@ -41,9 +41,10 @@ my $JOBS      = 1;
 my $VER       = 0;
 my $HELP      = 0;
 
-my $interrupt = 0;
-my $child_count = 0;
-my %RUNNING_PIDS= ();
+my $interrupt    = 0;
+my $child_count  = 0;
+my %RUNNING_PIDS = ();
+my $dbh          = undef;
 
 my @post_conn = (
 	"SELECT pg_catalog.set_config('search_path', '', false);",
@@ -89,6 +90,8 @@ sub spawn
 }
 
 
+$SIG{'CHLD'} = 'DEFAULT';
+
 # With multiprocess we need to wait for all children
 sub wait_child
 {
@@ -102,6 +105,8 @@ sub wait_child
 		$SIG{INT} = \&wait_child;
 		$SIG{TERM} = \&wait_child;
 	}
+	$dbh->disconnect() if (defined $dbh);
+
 	_exit(0);
 }
 $SIG{INT} = \&wait_child;
@@ -170,7 +175,7 @@ print "Database $DBNAME dump created at ", `date --rfc-3339=seconds`;
 my $dbpg_opt = '';
 $dbpg_opt .= ";port=$DBPORT" if ($DBPORT);
 $dbpg_opt .= ";host=$DBHOST" if ($DBHOST);
-my $dbh = DBI->connect("dbi:Pg:dbname=$DBNAME$dbpg_opt", $DBUSER, '', {AutoCommit => 1, AutoInactiveDestroy => 1});
+$dbh = DBI->connect("dbi:Pg:dbname=$DBNAME$dbpg_opt", $DBUSER, '', {AutoCommit => 1, InactiveDestroy => 1});
 if (not defined $dbh)
 {
 	die "FATAL: can not connect to database $DBNAME\n";
@@ -267,35 +272,22 @@ foreach my $s (sort keys %tbl_list)
 		{
 			my $sch = $s;
 			my $tbl = $tbl_list{$s}[$i];
-			# Clone the connection to the database
-			my $dbh2 = $dbh->clone();
-			if (not defined $dbh2)
+			my ($fh, $filename) = tempfile('tmp_pg_dumpbinXXXX', SUFFIX => '.sql', DIR => $TMP_DIR, UNLINK => 1 );
+			if (defined $fh)
 			{
-				die "FATAL: can not connect to database $DBNAME\n";
+				print $fh "\\o /dev/null\n";
+				foreach my $q (@post_conn)
+				{
+					next if ($pgversion < 9.6 and $q =~ /SET idle_in_transaction_session_timeout/);
+					print $fh "$q\n";
+				}
+				print $fh "SET TRANSACTION SNAPSHOT '$snapshot';\n";
+				print $fh "\\o\n";
+				print $fh "COPY \"$sch\".\"$tbl\" TO stdout WITH (FORMAT binary);\n";
+				close($fh);
+				`$PSQL $PG_OPT -d $DBNAME -f $filename | gzip -c - > "$OUTDIR/data-$sch.$tbl.bin.gz"`;
 			}
-			# Apply session setting
-			foreach my $q (@post_conn)
-			{
-				next if ($pgversion < 9.6 and $q =~ /SET idle_in_transaction_session_timeout/);
-				$dbh2->do("$q") or die "FATAL: " . $dbh->errstr . "\n";
-			}
-			$dbh2->do("SET TRANSACTION SNAPSHOT '$snapshot';") or die "FATAL: " . $dbh2->errstr . "\n";
-			# Now execute COPY order
-			$dbh2->do("COPY \"$sch\".\"$tbl\" TO stdout WITH (FORMAT binary);")
-				or die "FATAL: " . $dbh2->errstr . "\n";
-			my $data = '';
-			my $fhout = new IO::File;
-			$fhout->open("| gzip -c - > \"$OUTDIR/data-\Q$sch\E.\Q$tbl\E.bin.gz\"")
-				or die "FATAL: can't write to $OUTDIR/data-$sch.$tbl.bin.gz, $!\n";
-			$fhout->binmode(":raw");
-			$fhout->autoflush(1);
-			while ($dbh2->pg_getcopydata($data) >= 0)
-			{
-				print $fhout $data;
-			}
-			$fhout->close();
-			$sth->finish;
-			$dbh2->disconnect() if (defined $dbh2);
+			unlink($filename);
 		};
 		$child_count++;
 	}
