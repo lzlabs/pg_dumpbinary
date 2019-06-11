@@ -147,7 +147,7 @@ export by pg_dumpbinary. Set option -j with the number of simultaneous
 process you want to use. The behaviour is like the -j option of pg_dump
 in directory format. 
 
-The speed of the restoration can be improved by using parallelism during
+Similary restoration speed can be improved by using parallelism during
 the call to pg_restorebinary. Set option -j with the number of simultaneous
 process you want to use. The behaviour is like the -j option of pg_restore.
 
