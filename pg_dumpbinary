@@ -215,6 +215,7 @@ if ($is_in_recovery && $pgversion < 10)
 # Create a snapshot that will be reused with pg_dump for DDL and psql to retrieve data
 foreach my $q (@post_conn)
 {
+	next if ($pgversion < 9.6 and $q =~ /SET idle_in_transaction_session_timeout/);
 	$dbh->do("$q") or die "FATAL: " . $dbh->errstr . "\n";
 }
 $sth = $dbh->prepare("SELECT pg_catalog.pg_export_snapshot()") or die "FATAL: " . $dbh->errstr . "\n";
@@ -275,6 +276,7 @@ foreach my $s (sort keys %tbl_list)
 			# Apply session setting
 			foreach my $q (@post_conn)
 			{
+				next if ($pgversion < 9.6 and $q =~ /SET idle_in_transaction_session_timeout/);
 				$dbh2->do("$q") or die "FATAL: " . $dbh->errstr . "\n";
 			}
 			$dbh2->do("SET TRANSACTION SNAPSHOT '$snapshot';") or die "FATAL: " . $dbh2->errstr . "\n";
