@@ -72,6 +72,12 @@ anything than Perl itself and module DBD::Pg. The PostgreSQL commands
 pg_dump, pg_restore and psql must be available through the PATH environment
 variable. Data are compressed using gzip.
 
+Perl module DBD::Pg can be installed using `sudo yum install libdbi-dbd-pgsql`
+or `sudo apt install libdbd-pg-perl`. You can also install it from sources
+downloaded from [CPAN](https://metacpan.org/pod/DBD::Pg).
+
+To install pg_dumpbinary:
+
 ```
 perl Makefile.PL
 make
