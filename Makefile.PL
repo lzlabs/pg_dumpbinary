@@ -45,7 +45,7 @@ WriteMakefile(
 		   },
 	'AUTHOR'       => 'Gilles Darold (gilles@darold.net)',
 	'ABSTRACT'     => 'pg_dumpbinary - PostgreSQL log analysis report',
-	'EXE_FILES'    => [ qw(pg_dumpbinary) ],
+	'EXE_FILES'    => [ qw(pg_dumpbinary pg_restorebinary) ],
 	'MAN1PODS'     => { 'doc/pg_dumpbinary.pod' => 'blib/man1/pg_dumpbinary.1p','doc/pg_restorebinary.pod' => 'blib/man1/pg_restorebinary.1p' },
 	'DESTDIR'      => $DESTDIR,
 	'INSTALLDIRS'  => $INSTALLDIRS,
