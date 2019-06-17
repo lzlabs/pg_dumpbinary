@@ -286,6 +286,11 @@ foreach my $s (sort keys %tbl_list)
 				print $fh "COPY \"$sch\".\"$tbl\" TO stdout WITH (FORMAT binary);\n";
 				close($fh);
 				`$PSQL $PG_OPT -d $DBNAME -f $filename | gzip -c - > "$OUTDIR/data-$sch.$tbl.bin.gz"`;
+				# Remove empty data file
+				if ((stat("$OUTDIR/data-$sch.$tbl.bin.gz"))[7] == 35)
+				{
+					unlink("$OUTDIR/data-$sch.$tbl.bin.gz");
+				}
 			}
 			unlink($filename);
 		};
