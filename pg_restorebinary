@@ -38,6 +38,8 @@ my $INFO      = 0;
 my $HELP      = 0;
 my $DATAONLY  = 0;
 
+my $DISABLE_TRIGGERS = 0;
+
 my $interrupt = 0;
 my $child_count = 0;
 my %RUNNING_PIDS= ();
@@ -106,6 +108,7 @@ GetOptions(
 	"u|user=s"           => \$DBUSER,
 	"v|version!"         => \$VER,
 	"help!"              => \$HELP,
+	"disable-triggers!"  => \$DISABLE_TRIGGERS,
 );
 
 if ($VER)
@@ -215,7 +218,14 @@ foreach my $s (sort keys %tbl_list)
 		{
 			my $sch = quotemeta($s);
 			my $tbl = quotemeta($t);
-			print `gunzip -c '$INDIR/$tbl_list{$s}{$t}' | $PSQL $PG_OPT -d $DBNAME -c "COPY \\"$sch\\".\\"$tbl\\" FROM stdin WITH (FORMAT binary);"`;
+			if ($DISABLE_TRIGGERS)
+			{
+				print `gunzip -c '$INDIR/$tbl_list{$s}{$t}' | $PSQL $PG_OPT -d $DBNAME -c "ALTER TABLE \\"$sch\\".\\"$tbl\\" DISABLE TRIGGER ALL; COPY \\"$sch\\".\\"$tbl\\" FROM stdin WITH (FORMAT binary); ALTER TABLE \\"$sch\\".\\"$tbl\\" ENABLE TRIGGER ALL;"`;
+			}
+			else
+			{
+				print `gunzip -c '$INDIR/$tbl_list{$s}{$t}' | $PSQL $PG_OPT -d $DBNAME -c "COPY \\"$sch\\".\\"$tbl\\" FROM stdin WITH (FORMAT binary);"`;
+			}
 		};
 		$child_count++;
 	}
@@ -275,6 +285,7 @@ options:
   -u, --user NAME              connect as specified database user
   -v, --version                show program version
   --help                       show usage
+  --disable-triggers           disable triggers during data restore
 
 $msg
 };
