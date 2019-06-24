@@ -249,53 +249,70 @@ if ($?)
 # Retrieve list of schema.tables to restore.
 my %tbl_list = get_table_list();
 
-# Call psql to execute COPY in gziped binary format
+# Distribute all tables equally between all processes.
+my %distributed_table = ();
+my $proc = 1;
 foreach my $s (sort keys %tbl_list)
 {
 	for (my $i = 0; $i <= $#{$tbl_list{$s}}; $i++)
 	{
-		# Proceed to parallel dump if required
-		while ($child_count >= $JOBS)
-		{
-			my $kid = waitpid(-1, WNOHANG);
-			if ($kid > 0)
-			{
-				$child_count--;
-				delete $RUNNING_PIDS{$kid};
-			}
-			usleep(50000);
-		}
-		last if ($interrupt);
-
-		print "Dumping data from table $s.$tbl_list{$s}[$i]\n";
-		spawn sub
-		{
-			my $sch = $s;
-			my $tbl = $tbl_list{$s}[$i];
-			my ($fh, $filename) = tempfile('tmp_pg_dumpbinXXXX', SUFFIX => '.sql', DIR => $TMP_DIR, UNLINK => 1 );
-			if (defined $fh)
-			{
-				print $fh "\\o /dev/null\n";
-				foreach my $q (@post_conn)
-				{
-					next if ($pgversion < 9.6 and $q =~ /SET idle_in_transaction_session_timeout/);
-					print $fh "$q\n";
-				}
-				print $fh "SET TRANSACTION SNAPSHOT '$snapshot';\n";
-				print $fh "\\o\n";
-				print $fh "COPY \"$sch\".\"$tbl\" TO stdout WITH (FORMAT binary);\n";
-				close($fh);
-				`$PSQL $PG_OPT -d $DBNAME -f $filename | gzip -c - > "$OUTDIR/data-$sch.$tbl.bin.gz"`;
-				# Remove empty data file
-				if ((stat("$OUTDIR/data-$sch.$tbl.bin.gz"))[7] == 35)
-				{
-					unlink("$OUTDIR/data-$sch.$tbl.bin.gz");
-				}
-			}
-			unlink($filename);
-		};
-		$child_count++;
+		my $file = quotemeta($s) . '.' . quotemeta($tbl_list{$s}[$i]);
+		push(@{ $distributed_table{$proc} }, "\\o");
+		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
+		push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
+		push(@{ $distributed_table{$proc} }, qq{COPY "$s"."$tbl_list{$s}[$i]" TO stdout WITH (FORMAT binary);});
+		$proc++;
+		$proc = 1 if ($proc > $JOBS);
 	}
+}
+
+# Fork a process to call psql to execute COPY in gziped binary format
+# with the per process dedicated tables to export.
+foreach my $p (sort keys %distributed_table)
+{
+	spawn sub
+	{
+		my ($fh, $filename) = tempfile('pg_dumpbinXXXX', SUFFIX => '.tmp', DIR => $TMP_DIR, UNLINK => 1 );
+		if (defined $fh)
+		{
+			print $fh "\\o /dev/null\n";
+			foreach my $q (@post_conn)
+			{
+				next if ($pgversion < 9.6 and $q =~ /SET idle_in_transaction_session_timeout/);
+				print $fh "$q\n";
+			}
+			print $fh "SET TRANSACTION SNAPSHOT '$snapshot';\n";
+			print $fh "\\o\n";
+			map { print $fh "$_\n"; } @{ $distributed_table{$p} };
+			close($fh);
+			`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+
+			# Remove empty gzipped data file
+			foreach my $t (@{ $distributed_table{$p} } )
+			{
+				# extract filename part from COPY command
+				if ($t =~ /gzip -c > "([^\"]+)"$/)
+				{
+					if ((stat("$1"))[7] == 35)
+					{
+						unlink($1);
+					}
+				}
+			}
+		}
+		unlink($filename);
+	};
+}
+
+# Wait for all child processes to localdie
+while (scalar keys %RUNNING_PIDS > 0)
+{
+        my $kid = waitpid(-1, WNOHANG);
+        if ($kid > 0)
+	{
+                delete $RUNNING_PIDS{$kid};
+        }
+	usleep(50000);
 }
 
 # Dump database post-data section
@@ -312,17 +329,6 @@ if (!$interrupt)
 
 # Disconnect from snapshot connection
 $dbh->disconnect;
-
-# Wait for all child processes to localdie
-while (scalar keys %RUNNING_PIDS > 0)
-{
-        my $kid = waitpid(-1, WNOHANG);
-        if ($kid > 0)
-	{
-                delete $RUNNING_PIDS{$kid};
-        }
-	usleep(50000);
-}
 
 exit(1) if ($interrupt);
 
