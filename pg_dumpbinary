@@ -291,7 +291,7 @@ foreach my $p (sort keys %distributed_table)
 			foreach my $t (@{ $distributed_table{$p} } )
 			{
 				# extract filename part from COPY command
-				if ($t =~ /gzip -c > "([^\"]+)"$/)
+				if ($t =~ /gzip -c - > "([^\"]+)"$/)
 				{
 					if ((stat("$1"))[7] == 35)
 					{

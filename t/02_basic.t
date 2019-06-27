@@ -23,5 +23,5 @@ $ret = `diff t/sql/db_test_new.sql t/sql/db_test_orig.sql | grep -vE -- "--|5,6"
 ok( $ret eq '', "Good! No differences between source and destination database.");
 
 `rm -rf t/test_bin_dump`;
-#`rm t/sql/db_test_new.sql`;
+`rm t/sql/db_test_new.sql`;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
