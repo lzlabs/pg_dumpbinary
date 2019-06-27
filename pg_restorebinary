@@ -15,6 +15,8 @@ use strict;
 use Getopt::Long  qw(:config bundling no_ignore_case_always);
 use POSIX qw(locale_h sys_wait_h _exit);
 use Time::HiRes qw/usleep/;
+use File::Spec qw/ tmpdir /;
+use File::Temp qw/ tempfile /;
 
 my $VERSION = '1.0';
 my $PROGRAM = 'pg_restorebinary';
@@ -39,6 +41,8 @@ my $HELP      = 0;
 my $DATAONLY  = 0;
 
 my $DISABLE_TRIGGERS = 0;
+
+my $TMP_DIR   = File::Spec->tmpdir() || '/tmp';
 
 my $interrupt = 0;
 my $child_count = 0;
@@ -191,44 +195,46 @@ if (!$DATAONLY)
 # Retrieve list of schema.tables to restore.
 my %tbl_list = get_table_list();
 
-# Call psql to execute COPY in gziped binary format
+# Distribute all tables equally between all processes.
+my %distributed_table = ();
+my $proc = 1;
 foreach my $s (sort keys %tbl_list)
 {
-	next if ($#INC_SCHEMA >= 0 and !grep(/^$s$/, @INC_SCHEMA));
-	next if ($#EXC_SCHEMA >= 0 and grep(/^$s$/, @EXC_SCHEMA));
-	foreach my $t (sort keys %{$tbl_list{$s}})
+	foreach my $t (sort keys %{ $tbl_list{$s} })
 	{
-		next if ($#INC_TABLE >= 0 and !grep(/^\Q$t\E$/, @INC_TABLE));
-		next if ($#EXC_TABLE >= 0 and grep(/^\Q$t\E$/, @EXC_TABLE));
-		# Proceed to parallel dump if required
-		while ($child_count >= $JOBS)
+		my $sch = quotemeta($s);
+		my $tbl = quotemeta($t);
+		push(@{ $distributed_table{$proc} }, "\\o");
+		push(@{ $distributed_table{$proc} }, qq{\\echo Restoring data to table $s.$t});
+		if ($DISABLE_TRIGGERS)
 		{
-			my $kid = waitpid(-1, WNOHANG);
-			if ($kid > 0)
-			{
-				$child_count--;
-				delete $RUNNING_PIDS{$kid};
-			}
-			usleep(50000);
+			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" DISABLE TRIGGER ALL;});
 		}
-		last if ($interrupt);
-
-		print "Restoring data into table $s.$t.\n";
-		spawn sub
+		push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" FROM PROGRAM 'gunzip -c "$INDIR/data-$s.$t.bin.gz"' WITH (FORMAT binary);});
+		if ($DISABLE_TRIGGERS)
 		{
-			my $sch = quotemeta($s);
-			my $tbl = quotemeta($t);
-			if ($DISABLE_TRIGGERS)
-			{
-				print `gunzip -c '$INDIR/$tbl_list{$s}{$t}' | $PSQL $PG_OPT -d $DBNAME -c "ALTER TABLE \\"$sch\\".\\"$tbl\\" DISABLE TRIGGER ALL; COPY \\"$sch\\".\\"$tbl\\" FROM stdin WITH (FORMAT binary); ALTER TABLE \\"$sch\\".\\"$tbl\\" ENABLE TRIGGER ALL;"`;
-			}
-			else
-			{
-				print `gunzip -c '$INDIR/$tbl_list{$s}{$t}' | $PSQL $PG_OPT -d $DBNAME -c "COPY \\"$sch\\".\\"$tbl\\" FROM stdin WITH (FORMAT binary);"`;
-			}
-		};
-		$child_count++;
+			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" ENABLE TRIGGER ALL;});
+		}
+		$proc++;
+		$proc = 1 if ($proc > $JOBS);
 	}
+
+}
+
+# with the per process dedicated tables to export.
+foreach my $p (sort keys %distributed_table)
+{
+
+	spawn sub
+	{
+                my ($fh, $filename) = tempfile('pg_dumpbinXXXX', SUFFIX => '.tmp', DIR => $TMP_DIR, UNLINK => 1 );
+                if (defined $fh)
+                {
+			map { print $fh "$_\n"; } @{ $distributed_table{$p} };
+			close($fh);
+			`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+		}
+	};
 }
 
 # Wait for all child processes to localdie
@@ -302,13 +308,19 @@ sub get_table_list
 
 	#data-SCHEMA.TABLE.bin.gz
 	opendir(DIR, "$INDIR") || die "FATAL: can't opendir $INDIR: $!";
-	my @list = grep { /^data-(.*).bin.gz$/} readdir(DIR);
+	my @list = grep { /^data-(.*)\.bin\.gz$/} readdir(DIR);
         closedir(DIR);
 
 	foreach my $l (@list)
 	{
-		$l =~ /^data-(.*).bin.gz$/;
+		$l =~ /^data-(.*)\.bin\.gz$/;
 		my @inf = split(/\./, $1);
+                # Exclude / include some schemas only?
+                next if ($#INC_SCHEMA >= 0 and !grep(/^\Q$inf[0]\E$/, @INC_SCHEMA));
+                next if ($#EXC_SCHEMA >= 0 and grep(/^\Q$inf[0]\E$/, @EXC_SCHEMA));
+                # Exclude / include some tables only?
+                next if ($#INC_TABLE >= 0 and !grep(/^\Q$inf[1]\E$/, @INC_TABLE));
+                next if ($#EXC_TABLE >= 0 and grep(/^\Q$inf[1]\E$/, @EXC_TABLE));
 		$tb_lst{$inf[0]}{$inf[1]} = $l;
 	}
 
