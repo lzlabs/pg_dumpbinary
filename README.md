@@ -9,8 +9,8 @@ using pg_restorebinary.
 pg_dumpbinary is a tool used to dump a PostgreSQL database in binary
 format. With pg_dump you can dump a database in three different format:
 plain (plain-text SQL), directory (directory-format archive) and custom
-(custom-format archive). You must use this command unless you know what
-you are doing. pg_dumpbinary can help in some situation:
+(custom-format archive). You must use this command unless you are in
+one of those situations:
 
   - you have bytea that can not be exported by pg_dump because the
     total size of the escape/hex output exceed 1Gb.
