@@ -6,30 +6,29 @@ using pg_restorebinary.
 
 ## pg_dumpbinary
 
-pg_dumpbinary is a tool used to dump a PostgreSQL database in binary
-format. With pg_dump you can dump a database in three different format:
-plain (plain-text SQL), directory (directory-format archive) and custom
-(custom-format archive). You must use this command unless you are in
-one of those situations:
+pg_dumpbinary is useful in some situations:
 
-  - you have bytea that can not be exported by pg_dump because the
-    total size of the escape/hex output exceed 1Gb.
-  - you have custom type based on bytea that stores char(0) but the
-    user visible type is char/varchar/text which truncate data after
-    the '\0'. In this case pg_dump will export the data in the visible
-    type which will result in data lost.
-  - probably other cases that I have still not encountered.
+* you have bytea that can not be exported by pg_dump because the
+  total size of the escape/hex output exceed 1Gb.
+* you have custom type that stores `\0` internally in bytea but data
+  are returned as char/varchar/text which truncate data after
+  the '\0'. In this case pg_dump will export data in the output
+  type which will result in data lost.
+* any other case where pg_dump run in plain text, custom and
+  directory format is failing to export your data correctly.
 
 If you are in this case pg_dumpbinary will help you by dumping the
-PostgreSQL database in binary format.
+PostgreSQL database in binary format. In all other cases you must
+use the pg_dump/pg_restore commands distributed with PostgreSQL.
 
 The program creates a directory with the name given as parameter for
 the backup then it dump pre-data and post-data section using pg_dump
 in this directory.
 
 pg_dumpbinary collect the list of schemas and tables from the pre-data
-and execute through the psql command the SQL COPY orders to dump all
-data in binary format from all tables. The COPY statement looks like:
+section and execute through the psql command the SQL COPY orders to
+dump all data in binary format from all tables. The COPY statement
+looks like:
 
     COPY my_table TO stdout WITH (FORMAT binary);
 
@@ -57,9 +56,9 @@ pg_restorebinary is a tool used to restore a PostgreSQL database dumped
 using pg_dumpbinary command in binary format.
 
 The program read the directory given as parameter for the backup then it
-restore pre-data in the database given at -d option. Once it is done it
-proceed to data import. All data file are uncompressed on the fly and sent
-to a psql command using COPY SQL order like:
+restore the pre-data section in the database given at -d option. Once it
+is done it proceed to data import. All data file are uncompressed on the
+fly and sent to a psql command using COPY SQL order like:
 
     COPY my_table FROM stdin WITH (FORMAT binary);
 
