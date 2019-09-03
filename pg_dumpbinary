@@ -403,8 +403,13 @@ sub get_table_list
 ####
 sub get_current_date
 {
-    my $curdate = DateTime->now( time_zone =>
-                                 DateTime::TimeZone->new( name => 'local' ) );
+    my $tz;
+    eval { $tz = DateTime::TimeZone->new( name => 'local' ); };
+    if ( $@ ) {
+        print "WARNING: cannot determine local timezone, using UTC\n";
+        $tz = DateTime::TimeZone->new( name => 'UTC' );
+    }
+    my $curdate = DateTime->now( time_zone => $tz );
     return $curdate->strftime( '%FT%T' );
 }
 
