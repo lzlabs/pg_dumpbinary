@@ -18,6 +18,7 @@ use File::Spec qw/ tmpdir /;
 use File::Temp qw/ tempfile /;
 use DBI;
 use DBD::Pg;
+use DateTime;
 
 my $VERSION = '1.0';
 my $PROGRAM = 'pg_dumpbinary';
@@ -168,7 +169,7 @@ if (!-d $OUTDIR)
 	mkdir $OUTDIR or die "FATAL: can not create directory $OUTDIR, $!\n";
 }
 
-print "Database $DBNAME dump created at ", `date --rfc-3339=seconds`;
+print "Database $DBNAME dump created at ", get_current_date();
 
 # Set DBD::Pg options and connect to the database
 # to create the snapshot for a consistent backup
@@ -332,7 +333,7 @@ $dbh->disconnect;
 
 exit(1) if ($interrupt);
 
-print "Dump ended at ", `date --rfc-3339=seconds`;
+print "Dump ended at ", get_current_date();
 
 exit 0;
 
@@ -397,15 +398,14 @@ sub get_table_list
 }
 
 ####
-# Return the date in ISO 8601 format minus the timezone part
+# Return the date in ISO 8601 format minus the timezone part.
+# As an example of returned value: 2019-09-03T09:03:12
 ####
 sub get_current_date
 {
-	my $curdate = `date -Iseconds`;
-	chomp($curdate);
-	$curdate =~ s/[+-]\d{2}:\d{2}$//;
-
-	return $curdate;
+    my $curdate = DateTime->now( time_zone =>
+                                 DateTime::TimeZone->new( name => 'local' ) );
+    return $curdate->strftime( '%FT%T' );
 }
 
 ####
