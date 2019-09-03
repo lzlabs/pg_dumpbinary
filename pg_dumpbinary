@@ -169,7 +169,7 @@ if (!-d $OUTDIR)
 	mkdir $OUTDIR or die "FATAL: can not create directory $OUTDIR, $!\n";
 }
 
-print "Database $DBNAME dump created at ", get_current_date();
+printf "Database $DBNAME dump created at %s\n", get_current_date();
 
 # Set DBD::Pg options and connect to the database
 # to create the snapshot for a consistent backup
@@ -333,7 +333,7 @@ $dbh->disconnect;
 
 exit(1) if ($interrupt);
 
-print "Dump ended at ", get_current_date();
+printf "Dump ended at %s\n", get_current_date();
 
 exit 0;
 
