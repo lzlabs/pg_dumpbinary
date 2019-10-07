@@ -67,9 +67,9 @@ Then post-data section are imported into the new database.
 ## Installation
 
 pg_dumpbinary and pg_restorebinary are Perl program that do not require
-anything than Perl itself and module DBD::Pg. The PostgreSQL commands
-pg_dump, pg_restore and psql must be available through the PATH environment
-variable. Data are compressed using gzip.
+anything than Perl itself, Perl modules DBD::Pg and DateTime. The PostgreSQL
+commands pg_dump, pg_restore and psql must be available through the PATH
+environment variable. Data are compressed using gzip.
 
 Perl module DBD::Pg can be installed using `sudo apt install libdbd-pg-perl`
 or `sudo yum install perl-DBI perl-DBD-Pg`. You can also install it
