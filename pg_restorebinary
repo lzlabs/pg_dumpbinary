@@ -210,7 +210,7 @@ foreach my $s (sort keys %tbl_list)
 		{
 			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" DISABLE TRIGGER ALL;});
 		}
-		push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" FROM PROGRAM 'gunzip -c "$INDIR/data-$s.$t.bin.gz"' WITH (FORMAT binary);});
+		push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
 		if ($DISABLE_TRIGGERS)
 		{
 			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" ENABLE TRIGGER ALL;});
