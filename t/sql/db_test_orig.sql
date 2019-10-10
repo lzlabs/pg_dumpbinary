@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 11.3 (Ubuntu 11.3-1.pgdg18.04+1)
--- Dumped by pg_dump version 11.3 (Ubuntu 11.3-1.pgdg18.04+1)
+-- Dumped from database version 11.5 (Ubuntu 11.5-3.pgdg18.04+1)
+-- Dumped by pg_dump version 11.5 (Ubuntu 11.5-3.pgdg18.04+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -51,6 +51,62 @@ CREATE TABLE "BTEST"."T1" (
 
 
 ALTER TABLE "BTEST"."T1" OWNER TO gilles;
+
+--
+-- Name: measurement; Type: TABLE; Schema: BTEST; Owner: gilles
+--
+
+CREATE TABLE "BTEST".measurement (
+    logdate date NOT NULL,
+    peaktemp integer,
+    unitsales integer
+)
+PARTITION BY RANGE (logdate);
+
+
+ALTER TABLE "BTEST".measurement OWNER TO gilles;
+
+--
+-- Name: measurement_default; Type: TABLE; Schema: BTEST; Owner: gilles
+--
+
+CREATE TABLE "BTEST".measurement_default (
+    logdate date NOT NULL,
+    peaktemp integer,
+    unitsales integer
+);
+ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_default DEFAULT;
+
+
+ALTER TABLE "BTEST".measurement_default OWNER TO gilles;
+
+--
+-- Name: measurement_y2016; Type: TABLE; Schema: BTEST; Owner: gilles
+--
+
+CREATE TABLE "BTEST".measurement_y2016 (
+    logdate date NOT NULL,
+    peaktemp integer,
+    unitsales integer
+);
+ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_y2016 FOR VALUES FROM ('2016-01-01') TO ('2017-01-01');
+
+
+ALTER TABLE "BTEST".measurement_y2016 OWNER TO gilles;
+
+--
+-- Name: measurement_y2017; Type: TABLE; Schema: BTEST; Owner: gilles
+--
+
+CREATE TABLE "BTEST".measurement_y2017 (
+    logdate date NOT NULL,
+    peaktemp integer,
+    unitsales integer
+);
+ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_y2017 FOR VALUES FROM ('2017-01-01') TO ('2018-01-01');
+
+
+ALTER TABLE "BTEST".measurement_y2017 OWNER TO gilles;
 
 --
 -- Name: t2; Type: TABLE; Schema: BTEST; Owner: gilles
@@ -203,6 +259,33 @@ COPY "BTEST"."T1" ("COL1", "COL2") FROM stdin;
 
 
 --
+-- Data for Name: measurement_default; Type: TABLE DATA; Schema: BTEST; Owner: gilles
+--
+
+COPY "BTEST".measurement_default (logdate, peaktemp, unitsales) FROM stdin;
+2018-07-10	66	100
+\.
+
+
+--
+-- Data for Name: measurement_y2016; Type: TABLE DATA; Schema: BTEST; Owner: gilles
+--
+
+COPY "BTEST".measurement_y2016 (logdate, peaktemp, unitsales) FROM stdin;
+2016-07-10	44	140
+\.
+
+
+--
+-- Data for Name: measurement_y2017; Type: TABLE DATA; Schema: BTEST; Owner: gilles
+--
+
+COPY "BTEST".measurement_y2017 (logdate, peaktemp, unitsales) FROM stdin;
+2017-07-10	66	100
+\.
+
+
+--
 -- Data for Name: t2; Type: TABLE DATA; Schema: BTEST; Owner: gilles
 --
 
@@ -343,6 +426,55 @@ COPY public.t2 (id) FROM stdin;
 9
 10
 \.
+
+
+--
+-- Name: ixsales; Type: INDEX; Schema: BTEST; Owner: gilles
+--
+
+CREATE INDEX ixsales ON ONLY "BTEST".measurement USING btree (unitsales);
+
+
+--
+-- Name: measurement_default_unitsales_idx; Type: INDEX; Schema: BTEST; Owner: gilles
+--
+
+CREATE INDEX measurement_default_unitsales_idx ON "BTEST".measurement_default USING btree (unitsales);
+
+
+--
+-- Name: measurement_y2016_unitsales_idx; Type: INDEX; Schema: BTEST; Owner: gilles
+--
+
+CREATE INDEX measurement_y2016_unitsales_idx ON "BTEST".measurement_y2016 USING btree (unitsales);
+
+
+--
+-- Name: measurement_y2017_unitsales_idx; Type: INDEX; Schema: BTEST; Owner: gilles
+--
+
+CREATE INDEX measurement_y2017_unitsales_idx ON "BTEST".measurement_y2017 USING btree (unitsales);
+
+
+--
+-- Name: measurement_default_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: 
+--
+
+ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_default_unitsales_idx;
+
+
+--
+-- Name: measurement_y2016_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: 
+--
+
+ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_y2016_unitsales_idx;
+
+
+--
+-- Name: measurement_y2017_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: 
+--
+
+ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_y2017_unitsales_idx;
 
 
 --

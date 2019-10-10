@@ -1,4 +1,4 @@
-use Test::Simple tests => 15;
+use Test::Simple tests => 17;
 
 my $ret = ``;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
@@ -6,13 +6,13 @@ $ret = `createdb test_bin_dump_dest`;
 ok( $? == 0, "Destination test database created");
 `rm -rf t/test_bin_dump/ >/dev/null 2>&1`;
 $ret = `perl pg_dumpbinary -n '"BTEST"' -d test_bin_dump_orig t/test_bin_dump`;
-ok( $? == 0 && `ls t/test_bin_dump/ | wc -l` == 5, "Dump test database for single namespace");
+ok( $? == 0 && `ls t/test_bin_dump/ | wc -l` == 8, "Dump test database for single namespace");
 `rm -rf t/test_bin_dump`;
 $ret = `perl pg_dumpbinary -n '"BTEST"' -t '"BTEST"."T1"' -d test_bin_dump_orig t/test_bin_dump`;
 ok( $? == 0 && `ls t/test_bin_dump/ | wc -l` == 3, "Dump test database for single table");
 `rm -rf t/test_bin_dump`;
 $ret = `perl pg_dumpbinary -n '"BTEST"' -T '"BTEST"."T1"' -d test_bin_dump_orig t/test_bin_dump`;
-ok( $? == 0 && `ls t/test_bin_dump/ | wc -l` == 4, "Dump test database excluding single table");
+ok( $? == 0 && `ls t/test_bin_dump/ | wc -l` == 7, "Dump test database excluding single table");
 `rm -rf t/test_bin_dump`;
 $ret = `perl pg_dumpbinary -d test_bin_dump_orig t/test_bin_dump`;
 ok( $? == 0, "Dump all from orig database");
@@ -21,13 +21,13 @@ ok( $? == 0, "Create destination schema");
 $ret = `perl pg_restorebinary -n 'BTEST' -d test_bin_dump_dest t/test_bin_dump`;
 ok( $? == 0, "Restore all tables from one schema");
 $ret = `psql -d test_bin_dump_dest -Atc "select count(\*) from pg_class c join pg_namespace n ON (c.relnamespace = n.oid) where relkind = 'r' and n.nspname = 'BTEST';"`;
-ok( $? == 0 && $ret == 3, "All tables in schema restored");
+ok( $? == 0 && $ret == 6, "All tables in schema restored");
 $ret = `psql -d test_bin_dump_dest -c 'DROP TABLE "BTEST"."T1";'`;
 ok( $? == 0, "Drop one table in the restored schema to restore it");
 $ret = `perl pg_restorebinary -n 'BTEST' -t 'T1' -d test_bin_dump_dest t/test_bin_dump`;
 ok( $? == 0, "Restore only one table into a schema");
 $ret = `psql -d test_bin_dump_dest -Atc "select count(\*) from pg_class c join pg_namespace n ON (c.relnamespace = n.oid) where relkind = 'r' and n.nspname = 'BTEST';"`;
-ok( $? == 0 && $ret == 3, "All tables in schema present");
+ok( $? == 0 && $ret == 6, "All tables in schema present");
 $ret = `psql -d test_bin_dump_dest -Atc 'select count(\*) from "BTEST"."T1";'`;
 ok( $? == 0 && $ret == 100, "All data restored");
 $ret = `psql -d test_bin_dump_dest -c 'TRUNCATE "BTEST"."T1";'`;
@@ -36,6 +36,10 @@ $ret = `perl pg_restorebinary -a -n 'BTEST' -t 'T1' -d test_bin_dump_dest t/test
 ok( $? == 0, "Restore only data from one table");
 $ret = `psql -d test_bin_dump_dest -Atc 'select count(\*) from "BTEST"."T1";'`;
 ok( $? == 0 && $ret == 100, "All data restored");
+$ret = `psql -d test_bin_dump_dest -Atc 'select count(\*) from "BTEST"."measurement";'`;
+ok( $? == 0 && $ret == 3, "All data restored in partitions");
+$ret = `psql -d test_bin_dump_dest -Atc 'select count(\*) from "BTEST"."measurement_y2017";'`;
+ok( $? == 0 && $ret == 1, "All data restored in one partition");
 
 `rm -rf t/test_bin_dump`;
 `dropdb test_bin_dump_orig >/dev/null 2>&1`;

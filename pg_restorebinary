@@ -182,15 +182,22 @@ if ($INFO)
 	exit 0;
 }
 
-# Restoring database pre-data section
+# Restoring database pre-data section without attaching partition
+# it will be done at inport of post data section.
 if (!$DATAONLY)
 {
 	print "Restoring pre data section into $DBNAME.\n";
-	`$PGRESTORE $PG_OPT $PG_FILTER -d $DBNAME $INDIR/pre-data.dmp`;
+	`$PGRESTORE $PG_OPT $PG_FILTER $INDIR/pre-data.dmp | grep -v "ALTER TABLE ONLY .* ATTACH PARTITION " > tmp_pre-data.sql`;
+
+	`$PSQL $PG_OPT -d $DBNAME -f tmp_pre-data.sql`;
 	if ($?) {
 		die "ERROR: pg_restore error to restore pre-data section.\n";
 	}
+	unlink('tmp_pre-data.sql');
 }
+
+# Retrieve the list of partition table
+my %partitions = get_partition_list();
 
 # Retrieve list of schema.tables to restore.
 my %tbl_list = get_table_list();
@@ -202,6 +209,8 @@ foreach my $s (sort keys %tbl_list)
 {
 	foreach my $t (sort keys %{ $tbl_list{$s} })
 	{
+		# exclude partitionned table from import, COPY is not possible
+		next if (exists $partitions{$s}{$t});
 		my $sch = quotemeta($s);
 		my $tbl = quotemeta($t);
 		push(@{ $distributed_table{$proc} }, "\\o");
@@ -218,7 +227,6 @@ foreach my $s (sort keys %tbl_list)
 		$proc++;
 		$proc = 1 if ($proc > $JOBS);
 	}
-
 }
 
 # with the per process dedicated tables to export.
@@ -253,6 +261,13 @@ exit(1) if ($interrupt);
 # Dump database post-data section
 if (!$DATAONLY)
 {
+	`$PGRESTORE $PG_OPT $PG_FILTER $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION " > tmp_pre-data.sql`;
+	`$PSQL $PG_OPT -d $DBNAME -f tmp_pre-data.sql`;
+	if ($?) {
+		die "ERROR: pg_restore error to restore attach partition section.\n";
+	}
+	unlink('tmp_pre-data.sql');
+
 	print "Restoring post data section.\n";
 	`$PGRESTORE $PG_OPT $PG_FILTER -d $DBNAME -j $JOBS $INDIR/post-data.dmp`;
 	if ($?) {
@@ -325,6 +340,26 @@ sub get_table_list
 	}
 
 	return %tb_lst;
+}
+
+# Get the list of partitions to import
+sub get_partition_list
+{
+	my %part_list = ();
+
+	my @list =  `$PGRESTORE $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	chomp(@list);
+
+	foreach my $l (@list)
+	{
+		# ALTER TABLE ONLY schema.table ATTACH PARTITION schema.partition
+		if ($l =~ /ALTER TABLE ONLY ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* ATTACH PARTITION ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* /)
+		{
+			push(@{$part_list{$1}{$2}}, $3 . '.' . $4)
+		}
+	}
+
+	return %part_list
 }
 
 ####

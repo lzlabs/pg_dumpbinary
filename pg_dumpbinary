@@ -266,6 +266,9 @@ if ($?)
 	die "ERROR: pg_dump error to dump pre-data section.\n";
 }
 
+# Retrieve the list of partition table
+my %partitions = get_partition_list();
+
 # Retrieve list of schema.tables to restore.
 my %tbl_list = get_table_list();
 
@@ -276,6 +279,8 @@ foreach my $s (sort keys %tbl_list)
 {
 	for (my $i = 0; $i <= $#{$tbl_list{$s}}; $i++)
 	{
+		# exclude partitionned table from export, COPY is not possible
+		next if (exists $partitions{$s}{$tbl_list{$s}[$i]});
 		my $file = quotemeta($s) . '.' . quotemeta($tbl_list{$s}[$i]);
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
@@ -429,6 +434,26 @@ sub get_table_list
 	}
 
 	return %tb_lst;
+}
+
+# Get the list of partitions to export
+sub get_partition_list
+{
+	my %part_list = ();
+
+	my @list =  `$PGRESTORE $OUTDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	chomp(@list);
+
+	foreach my $l (@list)
+	{
+		# ALTER TABLE ONLY schema.table ATTACH PARTITION schema.partition
+		if ($l =~ /ALTER TABLE ONLY ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* ATTACH PARTITION ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* /)
+		{
+			push(@{$part_list{$1}{$2}}, $3 . '.' . $4)
+		}
+	}
+
+	return %part_list
 }
 
 ####
