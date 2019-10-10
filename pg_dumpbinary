@@ -238,6 +238,25 @@ if (!$snapshot)
 	die "FATAL: can not obtain a snapshot, please check what's going wrong.\n";
 }
 
+# Save snapshot information to file
+unlink(".snapshot_info") if (-e ".snapshot_info");
+open(my $sfh, '>', ".snapshot_info") or die "FATAL: can not save snapshot information to file .snapshot_info\n";
+print $sfh $snapshot;
+close($sfh);
+
+# Fork a process to maintain activity in the snapshot connection to avoid
+# timeout disconnection from a firwall. THe process is terminated when the
+# snapshot info file is removed.
+spawn sub
+{
+	while (-e ".snapshot_info")
+	{
+		my $sth2 = $dbh->do("SELECT 1;") or die "FATAL: " . $dbh->errstr . "\n";
+		sleep(30);
+	}
+
+};
+
 # Dump database pre-data section
 printf "Dumping pre data section at %s\n", get_current_date();
 `$PGDUMP --snapshot='$snapshot' $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f $OUTDIR/pre-data.dmp`;
@@ -269,6 +288,7 @@ foreach my $s (sort keys %tbl_list)
 
 # Fork a process to call psql to execute COPY in gziped binary format
 # with the per process dedicated tables to export.
+printf "Dumping data at %s\n", get_current_date();
 foreach my $p (sort keys %distributed_table)
 {
 	spawn sub
@@ -306,7 +326,7 @@ foreach my $p (sort keys %distributed_table)
 }
 
 # Wait for all child processes to localdie
-while (scalar keys %RUNNING_PIDS > 0)
+while (scalar keys %RUNNING_PIDS > 1)
 {
         my $kid = waitpid(-1, WNOHANG);
         if ($kid > 0)
@@ -326,6 +346,20 @@ if (!$interrupt)
 		$dbh->disconnect();
 		die "ERROR: pg_dump error for post-data section.\n";
 	}
+}
+
+# Remove the snapshot information file to terminate the last child process
+unlink(".snapshot_info");
+
+# Then wait for all child processes to localdie
+while (scalar keys %RUNNING_PIDS > 0)
+{
+        my $kid = waitpid(-1, WNOHANG);
+        if ($kid > 0)
+	{
+                delete $RUNNING_PIDS{$kid};
+        }
+	usleep(50000);
 }
 
 # Disconnect from snapshot connection
