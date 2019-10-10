@@ -239,7 +239,7 @@ if (!$snapshot)
 }
 
 # Dump database pre-data section
-print "Dumping pre data section\n";
+printf "Dumping pre data section at %s\n", get_current_date();
 `$PGDUMP --snapshot='$snapshot' $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f $OUTDIR/pre-data.dmp`;
 if ($?)
 {
@@ -319,7 +319,7 @@ while (scalar keys %RUNNING_PIDS > 0)
 # Dump database post-data section
 if (!$interrupt)
 {
-	print "Dumping post data section\n";
+	printf "Dumping post data section at %s\n", get_current_date();
 	`$PGDUMP --snapshot="$snapshot" $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=post-data -f $OUTDIR/post-data.dmp`;
 	if ($?)
 	{
