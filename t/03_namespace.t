@@ -1,4 +1,4 @@
-use Test::Simple tests => 17;
+use Test::Simple tests => 18;
 
 my $ret = ``;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
@@ -40,7 +40,21 @@ $ret = `psql -d test_bin_dump_dest -Atc 'select count(\*) from "BTEST"."measurem
 ok( $? == 0 && $ret == 3, "All data restored in partitions");
 $ret = `psql -d test_bin_dump_dest -Atc 'select count(\*) from "BTEST"."measurement_y2017";'`;
 ok( $? == 0 && $ret == 1, "All data restored in one partition");
+`rm -rf t/test_bin_dump`;
 
+# Make a diff between source and destination database
+# to be sure that everything is present
+`perl pg_dumpbinary -d test_bin_dump_orig t/test_bin_dump`;
+`dropdb test_bin_dump_dest >/dev/null 2>&1`;
+`createdb test_bin_dump_dest`;
+`perl pg_restorebinary -d test_bin_dump_dest t/test_bin_dump`;
+`pg_dump test_bin_dump_orig > src.sql`;
+`pg_dump test_bin_dump_dest > dst.sql`;
+$ret = `diff src.sql dst.sql > /dev/null`;
+ok( $? == 0 && $ret eq '', "Origin and restored database are exactly the same");
+
+# Clean all
+`rm -f src.sql dst.sql`;
 `rm -rf t/test_bin_dump`;
 `dropdb test_bin_dump_orig >/dev/null 2>&1`;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
