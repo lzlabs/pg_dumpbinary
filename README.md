@@ -125,10 +125,11 @@ usage: pg_restorebinary [options] -d dbname backup_dir
                It must be a directory created by pg_dumpbinary.
 options:
 
+  -a, --data-only              restore only the data, no schema
   -d, --database DBNAME        database to restore, it must exists
   -h, --host HOSTNAME          database server host or socket directory
-  -j, --job NUM                use this many parallel jobs to restore
   -i, --info                   print information about the dump and exit
+  -j, --job NUM                use this many parallel jobs to restore
   -n, --schema SCHEMA          restore the named schema(s) only
   -N, --exclude-schema SCHEMA  do NOT restore the named schema(s)
   -p, --port PORT              database server port number, default: 5432
@@ -137,6 +138,8 @@ options:
   -u, --user NAME              connect as specified database user
   -v, --version                show program version
   --help                       show usage
+  --disable-triggers           disable triggers during data restore
+
 ```
 
 ## Parallel processing

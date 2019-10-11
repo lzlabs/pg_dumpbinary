@@ -4,26 +4,29 @@ pg_restorebinary - Restore a dump generated with pg_dumpbinary.
 
 =head1 SYNOPSIS
 
-Program used to restore a PostgreSQL database dumped in binary format.
-The dumps to restored must be generated using command pg_restorebinary.
-
-Program used to restore a PostgreSQL binary dump generated with pg_dumpbinary.
+Program used to restore a PostgreSQL binary dump done with pg_dumpbinary.
 It can not be used to restore other PostgreSQL dump.
 
 usage: pg_restorebinary [options] -d dbname backup_dir
 
-  backup_dir   directory where dump files to restore will be read.
+  backup_dir   directory where backup files to restore will be read.
                It must be a directory created by pg_dumpbinary.
 options:
 
-  -d, --database dbname database where the dump must be restore, must exists.
-  -h, --host ip         ip or hostname of the PostgreSQL instance to connect.
-  -j, --job nproc       number of cores to use to parallelize restoration.
-  -i, --info            print information about the dump and exit.
-  -p, --port port       port number to connect to PostgreSQL, default: 5432.
-  -u, --user username   user to log into PostgreSQL database.
-  -v, --version         show program version.
-  --help                show usage.
+  -a, --data-only              restore only the data, no schema
+  -d, --database DBNAME        database to restore, it must exists
+  -h, --host HOSTNAME          database server host or socket directory
+  -i, --info                   print information about the dump and exit
+  -j, --job NUM                use this many parallel jobs to restore
+  -n, --schema SCHEMA          restore the named schema(s) only
+  -N, --exclude-schema SCHEMA  do NOT restore the named schema(s)
+  -p, --port PORT              database server port number, default: 5432
+  -t, --table TABLE            restore named relation
+  -T, --exclude-table TABLE    do NOT restore the named table
+  -u, --user NAME              connect as specified database user
+  -v, --version                show program version
+  --help                       show usage
+  --disable-triggers           disable triggers during data restore
 
 =head1 DESCRIPTION
 

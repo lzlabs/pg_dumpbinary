@@ -14,15 +14,17 @@ usage: pg_dumpbinary -d dbname [options] backup_name
 		  when no output directory is provided.
 options:
 
-  -d, --database dbname database name to dump
-  -h, --host ip         ip or hostname of the PostgreSQL instance to connect.
-  -j, --job nproc       number of core to use to dump tables data.
-  -p, --port port       port number to connect to PostgreSQL database, default
-                        port: 5432.
-  -u, --user username   user to log into PostgreSQL database.
-  -v, --version         show program version.
-  --help                show usage.
-
+  -d, --database DBNAME        database to dump
+  -h, --host HOSTNAME          database server host or socket directory
+  -j, --job NUM                use this many parallel jobs to dump
+  -n, --schema SCHEMA          dump the named schema(s) only
+  -N, --exclude-schema SCHEMA  do NOT dump the named schema(s)
+  -p, --port PORT              database server port number, default: 5432
+  -t, --table TABLE            dump named relation
+  -T, --exclude-table TABLE    do NOT dump the named table
+  -u, --user NAME              connect as specified database user
+  -v, --version                show program version
+  --help                       show usage
 
 =head1 DESCRIPTION
 

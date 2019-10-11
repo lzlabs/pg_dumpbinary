@@ -187,9 +187,7 @@ if ($INFO)
 if (!$DATAONLY)
 {
 	print "Restoring pre data section into $DBNAME.\n";
-	`$PGRESTORE $PG_OPT $PG_FILTER $INDIR/pre-data.dmp | grep -v "ALTER TABLE ONLY .* ATTACH PARTITION " > tmp_pre-data.sql`;
-
-	`$PSQL $PG_OPT -d $DBNAME -f tmp_pre-data.sql`;
+	`$PGRESTORE $PG_OPT $PG_FILTER -d $DBNAME $INDIR/pre-data.dmp`;
 	if ($?) {
 		die "ERROR: pg_restore error to restore pre-data section.\n";
 	}
@@ -261,13 +259,6 @@ exit(1) if ($interrupt);
 # Dump database post-data section
 if (!$DATAONLY)
 {
-	`$PGRESTORE $PG_OPT $PG_FILTER $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION " > tmp_pre-data.sql`;
-	`$PSQL $PG_OPT -d $DBNAME -f tmp_pre-data.sql`;
-	if ($?) {
-		die "ERROR: pg_restore error to restore attach partition section.\n";
-	}
-	unlink('tmp_pre-data.sql');
-
 	print "Restoring post data section.\n";
 	`$PGRESTORE $PG_OPT $PG_FILTER -d $DBNAME -j $JOBS $INDIR/post-data.dmp`;
 	if ($?) {
@@ -294,10 +285,11 @@ usage: pg_restorebinary [options] -d dbname backup_dir
                It must be a directory created by pg_dumpbinary.
 options:
 
+  -a, --data-only              restore only the data, no schema
   -d, --database DBNAME        database to restore, it must exists
   -h, --host HOSTNAME          database server host or socket directory
-  -j, --job NUM                use this many parallel jobs to restore
   -i, --info                   print information about the dump and exit
+  -j, --job NUM                use this many parallel jobs to restore
   -n, --schema SCHEMA          restore the named schema(s) only
   -N, --exclude-schema SCHEMA  do NOT restore the named schema(s)
   -p, --port PORT              database server port number, default: 5432
