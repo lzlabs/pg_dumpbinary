@@ -245,14 +245,19 @@ print $sfh $snapshot;
 close($sfh);
 
 # Fork a process to maintain activity in the snapshot connection to avoid
-# timeout disconnection from a firwall. THe process is terminated when the
+# timeout disconnection from a firwall. The process is terminated when the
 # snapshot info file is removed.
 spawn sub
 {
+	my $old_time = time;
 	while (-e ".snapshot_info")
 	{
-		my $sth2 = $dbh->do("SELECT 1;") or die "FATAL: " . $dbh->errstr . "\n";
-		sleep(30);
+		if (time > $old_time + 30)
+		{
+			$old_time = time;
+			my $sth2 = $dbh->do("SELECT 1;") or die "FATAL: " . $dbh->errstr . "\n";
+		}
+		sleep(1);
 	}
 
 };
