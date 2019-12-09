@@ -1,3 +1,41 @@
+2019-12-08 - version 2.0
+
+This release fix some issues reported by users since last release
+and adds news features and improvements.
+
+  - Add -a | --data-only option to pg_restorebinary to restore data
+    only, not schema.
+    Fix partition data import that do not need to delay partitions
+    attachment at post data section.
+  - Prevent waiting 30 seconds that the snapshot connection be closed
+    at end of the dump.
+  - Add support to dump/restore partitions independently from the
+    partitioned tables. In previous version dumping a partitioned
+    table generate the following error:
+    
+        ERROR: cannot copy from partitioned table "..."
+    
+    pg_dumpbinary dumps partitions data independently and just skip
+    the partitioned table. pg_restorebinary restore partitions without
+    attaching them to the partitioned table then restore data directly
+    into the partition then attach the partitions to the partitioned
+    table.
+  - On some dumps through a firewall the inactive connection that
+    maintain the snapshot state is kill after a certain time. This
+    fix forks the process to keep this connection active by issuing
+    a 'SELECT 1;' each 30 seconds.
+  - Add date to log information when dumping pre and post section.
+  - Fix restoration of table with name that need to be double quoted.
+  - Fall back to UTC timezone if cannot determine the local one.
+    Thanks to Luca Ferrari for the patch.
+  - Changed a print to printf to allow newline. Thanks to Luca Ferrari
+    for the patch.
+  - Change the usage of external `date` to DateTime. Thanks to Luca 
+    Ferrari for the patch.
+  - Copyright and Github project moved to LzLabs, license unchanged.
+
+Backward compatibility with previous backup is preserved.
+
 2019-08-30 - version 1.0
 
   First public release.
