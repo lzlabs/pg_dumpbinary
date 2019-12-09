@@ -24,11 +24,11 @@ if ($ExtUtils::MakeMaker::VERSION >= 6.46) {
 	%merge_compat = (
 		'META_MERGE'   => {
 			resources  => {
-				homepage => 'https://github.com/darold/pg_dumpbinary',
+				homepage => 'https://github.com/lzlabs/pg_dumpbinary',
 				repository  => {
 					type => 'git',
-					git => 'git@github.com:darold/pg_dumpbinary.git',
-					web => 'https://github.com/darold/pg_dumpbinary',
+					git => 'git@github.com:lzlabs/pg_dumpbinary.git',
+					web => 'https://github.com/lzlabs/pg_dumpbinary',
 				},
 			},
 		}

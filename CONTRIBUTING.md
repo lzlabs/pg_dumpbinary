@@ -4,9 +4,9 @@
 
 1. Upgrade to the latest version of pg_dumpbinary and see if the problem remains
 
-2. Look at the [closed issues](https://github.com/darold/pg_dumpbinary/issues?state=closed), we may have already answered a similar problem
+2. Look at the [closed issues](https://github.com/lzlabs/pg_dumpbinary/issues?state=closed), we may have already answered a similar problem
 
-3. [Read the doc](http://darold.github.com/pg_dumpbinary/). It is short and useful.
+3. [Read the doc](http://lzlabs.github.com/pg_dumpbinary/). It is short and useful.
 
 
 ## Coding style
