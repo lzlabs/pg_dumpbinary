@@ -426,6 +426,7 @@ sub get_table_list
 {
 	my %tb_lst = ();
 
+	# Get regular tables
 	my @list =  `$PGRESTORE -l $OUTDIR/pre-data.dmp | grep " TABLE "`;
 	chomp(@list);
 
@@ -436,6 +437,18 @@ sub get_table_list
 		my @inf = split(/\s/, $l);
 		next if ($#inf != 6);
 		push( @{ $tb_lst{$inf[4]} }, $inf[5]);
+	}
+
+	# Get any table registered in extension's configuration tables
+	# as they are logically not exported in the pre-data section
+	my @exttbl = `$PSQL $PG_OPT -d $DBNAME -AtXc "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY; SET TRANSACTION SNAPSHOT '$snapshot'; SELECT n.nspname||'.'||c.relname FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS n ON (c.relnamespace = n.oid) WHERE c.oid IN (SELECT unnest(extconfig)::regclass FROM pg_extension WHERE extconfig IS NOT NULL) AND c.relkind = 'r';"`;
+	chomp(@exttbl);
+	foreach my $t (@exttbl)
+	{
+		if ($t =~ /^([^\.]+)\.(.*)$/)
+		{
+			push( @{ $tb_lst{$1} }, $2);
+		}
 	}
 
 	return %tb_lst;
