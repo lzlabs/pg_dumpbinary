@@ -203,6 +203,11 @@ if ($pgversion < 9.2)
 	die "FATAL: pg_dumpbinary require PG >= 9.2!\n";
 }
 
+# We need to retrieve the version of pg_restore about
+# option -f - that is required with PG >= v12
+my $pgrestore_version = `$PGRESTORE --version | awk '{print \$3}'`;
+chomp($pgrestore_version);
+
 # Be sure that the host is not in recovery mode or that we have PG >= 10
 $sth = $dbh->prepare("SELECT pg_catalog.pg_is_in_recovery()") or die "FATAL: " . $dbh->errstr . "\n";
 $sth->execute or die "FATAL: " . $dbh->errstr . "\n";
@@ -466,7 +471,9 @@ sub get_partition_list
 {
 	my %part_list = ();
 
-	my @list =  `$PGRESTORE -f - "$OUTDIR/pre-data.dmp" | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	my $pgr_opt = '';
+	$pgr_opt = '-f -' if ($pgrestore_version >= 12);
+	my @list =  `$PGRESTORE $pgr_opt "$OUTDIR/pre-data.dmp" | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
 	chomp(@list);
 
 	foreach my $l (@list)

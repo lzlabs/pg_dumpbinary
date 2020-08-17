@@ -162,6 +162,11 @@ else
 	}
 }
 
+# We need to retrieve the version of pg_restore about
+# option -f - that is required with PG >= v12
+my $pgrestore_version = `$PGRESTORE --version | awk '{print \$3}'`;
+chomp($pgrestore_version);
+
 # Look at backup information
 if ($INFO)
 {
@@ -339,7 +344,9 @@ sub get_partition_list
 {
 	my %part_list = ();
 
-	my @list =  `$PGRESTORE -f - $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	my $pgr_opt = '';
+	$pgr_opt = '-f -' if ($pgrestore_version >= 12);
+	my @list =  `$PGRESTORE $pgr_opt $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
 	chomp(@list);
 
 	foreach my $l (@list)
