@@ -339,7 +339,7 @@ sub get_partition_list
 {
 	my %part_list = ();
 
-	my @list =  `$PGRESTORE $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	my @list =  `$PGRESTORE -f - $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
 	chomp(@list);
 
 	foreach my $l (@list)

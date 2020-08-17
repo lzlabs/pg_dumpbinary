@@ -264,7 +264,7 @@ spawn sub
 
 # Dump database pre-data section
 printf "Dumping pre data section at %s\n", get_current_date();
-`$PGDUMP --snapshot='$snapshot' $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f $OUTDIR/pre-data.dmp`;
+`$PGDUMP --snapshot='$snapshot' $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f "$OUTDIR/pre-data.dmp"`;
 if ($?)
 {
 	$dbh->disconnect();
@@ -274,8 +274,10 @@ if ($?)
 # Retrieve the list of partition table
 my %partitions = get_partition_list();
 
-# Retrieve list of schema.tables to restore.
-my %tbl_list = get_table_list();
+# Retrieve list of schema.tables to restore and condition for foreign tables.
+our %ext_cond = ();
+our %tbl_list = ();
+get_table_list();
 
 # Distribute all tables equally between all processes.
 my %distributed_table = ();
@@ -290,7 +292,14 @@ foreach my $s (sort keys %tbl_list)
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
 		push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
-		push(@{ $distributed_table{$proc} }, qq{COPY "$s"."$tbl_list{$s}[$i]" TO stdout WITH (FORMAT binary);});
+		if (!exists $ext_cond{$s}{$tbl_list{$s}[$i]} || $ext_cond{$s}{$tbl_list{$s}[$i]} eq '')
+		{
+			push(@{ $distributed_table{$proc} }, qq{COPY "$s"."$tbl_list{$s}[$i]" TO stdout WITH (FORMAT binary);});
+		}
+		else
+		{
+			push(@{ $distributed_table{$proc} }, qq{COPY (SELECT * FROM "$s"."$tbl_list{$s}[$i]" $ext_cond{$s}{$tbl_list{$s}[$i]}) TO stdout WITH (FORMAT binary);});
+		}
 		$proc++;
 		$proc = 1 if ($proc > $JOBS);
 	}
@@ -350,7 +359,7 @@ while (scalar keys %RUNNING_PIDS > 1)
 if (!$interrupt)
 {
 	printf "Dumping post data section at %s\n", get_current_date();
-	`$PGDUMP --snapshot="$snapshot" $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=post-data -f $OUTDIR/post-data.dmp`;
+	`$PGDUMP --snapshot="$snapshot" $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=post-data -f "$OUTDIR/post-data.dmp"`;
 	if ($?)
 	{
 		$dbh->disconnect();
@@ -419,15 +428,13 @@ $msg
 }
 
 ####
-# Return a hash of array corresponding to the
-# list of tables per schema of the database.
+# Set the list of tables and foreign tables per schema of the database.
+# Set also the conditions for foreign tables.
 ####
 sub get_table_list
 {
-	my %tb_lst = ();
-
 	# Get regular tables
-	my @list =  `$PGRESTORE -l $OUTDIR/pre-data.dmp | grep " TABLE "`;
+	my @list =  `$PGRESTORE -l "$OUTDIR/pre-data.dmp" | grep " TABLE "`;
 	chomp(@list);
 
 	foreach my $l (@list)
@@ -436,22 +443,22 @@ sub get_table_list
 		next if ($l =~ /\d+: \d+ \d+ TABLE /);
 		my @inf = split(/\s/, $l);
 		next if ($#inf != 6);
-		push( @{ $tb_lst{$inf[4]} }, $inf[5]);
+		push( @{ $tbl_list{$inf[4]} }, $inf[5]);
 	}
 
-	# Get any table registered in extension's configuration tables
-	# as they are logically not exported in the pre-data section
-	my @exttbl = `$PSQL $PG_OPT -d $DBNAME -AtXc "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY; SET TRANSACTION SNAPSHOT '$snapshot'; SELECT n.nspname||'.'||c.relname FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS n ON (c.relnamespace = n.oid) WHERE c.oid IN (SELECT unnest(extconfig)::regclass FROM pg_extension WHERE extconfig IS NOT NULL) AND c.relkind = 'r';"`;
+	# Get any table registered in extension's configuration tables as
+	# they are logically not exported in the pre-data section.
+	# Sequences are exclude from this export, they will be exported later
+	my @exttbl = `$PSQL $PG_OPT -d $DBNAME -AtXc "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY; SET TRANSACTION SNAPSHOT '$snapshot'; WITH extinf AS (SELECT unnest(extconfig) as id, unnest(extcondition) cond FROM pg_extension WHERE extconfig IS NOT NULL) SELECT n.nspname||'.'||c.relname||'.'||coalesce(t.cond, '') FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS n ON (c.relnamespace = n.oid) JOIN extinf t ON (t.id = c.oid) WHERE c.oid = t.id AND c.relkind = 'r';"`;
 	chomp(@exttbl);
 	foreach my $t (@exttbl)
 	{
-		if ($t =~ /^([^\.]+)\.(.*)$/)
+		if ($t =~ /^([^\.]+)\.([^\.]+)\.(.*)$/)
 		{
-			push( @{ $tb_lst{$1} }, $2);
+			push( @{ $tbl_list{$1} }, $2);
+			$ext_cond{$1}{$2} = $3;
 		}
 	}
-
-	return %tb_lst;
 }
 
 # Get the list of partitions to export
@@ -459,7 +466,7 @@ sub get_partition_list
 {
 	my %part_list = ();
 
-	my @list =  `$PGRESTORE $OUTDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	my @list =  `$PGRESTORE -f - "$OUTDIR/pre-data.dmp" | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
 	chomp(@list);
 
 	foreach my $l (@list)
