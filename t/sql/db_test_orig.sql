@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 11.5 (Ubuntu 11.5-3.pgdg18.04+1)
--- Dumped by pg_dump version 11.5 (Ubuntu 11.5-3.pgdg18.04+1)
+-- Dumped from database version 12.2 (Ubuntu 12.2-4)
+-- Dumped by pg_dump version 12.2 (Ubuntu 12.2-4)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -25,9 +25,18 @@ CREATE SCHEMA "BTEST";
 
 ALTER SCHEMA "BTEST" OWNER TO gilles;
 
+--
+-- Name: SEQNSP; Type: SCHEMA; Schema: -; Owner: gilles
+--
+
+CREATE SCHEMA "SEQNSP";
+
+
+ALTER SCHEMA "SEQNSP" OWNER TO gilles;
+
 SET default_tablespace = '';
 
-SET default_with_oids = false;
+SET default_table_access_method = heap;
 
 --
 -- Name: Empty$Table; Type: TABLE; Schema: BTEST; Owner: gilles
@@ -120,6 +129,66 @@ CREATE TABLE "BTEST".t2 (
 ALTER TABLE "BTEST".t2 OWNER TO gilles;
 
 --
+-- Name: test_seq1; Type: TABLE; Schema: SEQNSP; Owner: gilles
+--
+
+CREATE TABLE "SEQNSP".test_seq1 (
+    id integer NOT NULL,
+    lbl text
+);
+
+
+ALTER TABLE "SEQNSP".test_seq1 OWNER TO gilles;
+
+--
+-- Name: test_seq1_id_seq; Type: SEQUENCE; Schema: SEQNSP; Owner: gilles
+--
+
+CREATE SEQUENCE "SEQNSP".test_seq1_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE "SEQNSP".test_seq1_id_seq OWNER TO gilles;
+
+--
+-- Name: test_seq1_id_seq; Type: SEQUENCE OWNED BY; Schema: SEQNSP; Owner: gilles
+--
+
+ALTER SEQUENCE "SEQNSP".test_seq1_id_seq OWNED BY "SEQNSP".test_seq1.id;
+
+
+--
+-- Name: test_seq2; Type: TABLE; Schema: SEQNSP; Owner: gilles
+--
+
+CREATE TABLE "SEQNSP".test_seq2 (
+    id integer NOT NULL,
+    lbl character varying NOT NULL
+);
+
+
+ALTER TABLE "SEQNSP".test_seq2 OWNER TO gilles;
+
+--
+-- Name: test_seq2_id_seq; Type: SEQUENCE; Schema: SEQNSP; Owner: gilles
+--
+
+ALTER TABLE "SEQNSP".test_seq2 ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "SEQNSP".test_seq2_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: T1; Type: TABLE; Schema: public; Owner: gilles
 --
 
@@ -141,6 +210,13 @@ CREATE TABLE public.t2 (
 
 
 ALTER TABLE public.t2 OWNER TO gilles;
+
+--
+-- Name: test_seq1 id; Type: DEFAULT; Schema: SEQNSP; Owner: gilles
+--
+
+ALTER TABLE ONLY "SEQNSP".test_seq1 ALTER COLUMN id SET DEFAULT nextval('"SEQNSP".test_seq1_id_seq'::regclass);
+
 
 --
 -- Data for Name: Empty$Table; Type: TABLE DATA; Schema: BTEST; Owner: gilles
@@ -303,6 +379,32 @@ COPY "BTEST".t2 (id) FROM stdin;
 
 
 --
+-- Data for Name: test_seq1; Type: TABLE DATA; Schema: SEQNSP; Owner: gilles
+--
+
+COPY "SEQNSP".test_seq1 (id, lbl) FROM stdin;
+1	one
+2	two
+3	three
+4	four
+5	five
+\.
+
+
+--
+-- Data for Name: test_seq2; Type: TABLE DATA; Schema: SEQNSP; Owner: gilles
+--
+
+COPY "SEQNSP".test_seq2 (id, lbl) FROM stdin;
+1	one
+2	two
+3	three
+4	four
+5	five
+\.
+
+
+--
 -- Data for Name: T1; Type: TABLE DATA; Schema: public; Owner: gilles
 --
 
@@ -429,6 +531,20 @@ COPY public.t2 (id) FROM stdin;
 
 
 --
+-- Name: test_seq1_id_seq; Type: SEQUENCE SET; Schema: SEQNSP; Owner: gilles
+--
+
+SELECT pg_catalog.setval('"SEQNSP".test_seq1_id_seq', 5, true);
+
+
+--
+-- Name: test_seq2_id_seq; Type: SEQUENCE SET; Schema: SEQNSP; Owner: gilles
+--
+
+SELECT pg_catalog.setval('"SEQNSP".test_seq2_id_seq', 5, true);
+
+
+--
 -- Name: ixsales; Type: INDEX; Schema: BTEST; Owner: gilles
 --
 
@@ -457,21 +573,21 @@ CREATE INDEX measurement_y2017_unitsales_idx ON "BTEST".measurement_y2017 USING 
 
 
 --
--- Name: measurement_default_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: 
+-- Name: measurement_default_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: -
 --
 
 ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_default_unitsales_idx;
 
 
 --
--- Name: measurement_y2016_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: 
+-- Name: measurement_y2016_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: -
 --
 
 ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_y2016_unitsales_idx;
 
 
 --
--- Name: measurement_y2017_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: 
+-- Name: measurement_y2017_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: -
 --
 
 ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_y2017_unitsales_idx;
