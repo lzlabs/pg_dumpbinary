@@ -199,6 +199,9 @@ if (!$DATAONLY)
 	unlink('tmp_pre-data.sql');
 }
 
+# Get the list of sequences
+my %sequences = get_sequence_values();
+
 # Retrieve the list of partition table
 my %partitions = get_partition_list();
 
@@ -260,6 +263,21 @@ while (scalar keys %RUNNING_PIDS > 0)
 
 exit(1) if ($interrupt);
 
+# Restore the sequences values
+if (scalar keys %sequences)
+{
+	my ($fh, $filename) = tempfile('pg_dumpbinXXXX', SUFFIX => '.tmp', DIR => $TMP_DIR, UNLINK => 1 );
+	foreach my $s (sort keys %sequences)
+	{ 
+		foreach my $n (sort keys %{ $sequences{$s} })
+		{ 
+			print $fh "SELECT pg_catalog.setval('$sequences{$s}{$n}{fqdn}', $sequences{$s}{$n}{value}, true);\n";
+		}
+	}
+	close($fh);
+	# Import file to set sequences values
+	`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+}
 
 # Dump database post-data section
 if (!$DATAONLY)
@@ -400,3 +418,49 @@ sub set_filter_option
 	}
 }
 
+sub get_sequence_values
+{
+	my %seq = ();
+	my %list_dump_seq = ();
+
+	return %seq if (!-e "$INDIR/data-sequences.lst");
+
+	# Register existing sequence from the dump
+	my @seq_list =  `$PGRESTORE -l "$INDIR/pre-data.dmp" | grep " SEQUENCE " | grep -vE " OWNED BY | ACL .* SEQUENCE "`;
+	chomp(@seq_list);
+	foreach my $l (@seq_list)
+	{
+		# 391; 1259 1279956 SEQUENCE nspname seqname owner
+		my @inf = split(/\s/, $l);
+		$list_dump_seq{$inf[4]}{$inf[5]} = 1;
+	}
+
+	# Look at sequences values to restore
+	open(my $sfh, '<', "$INDIR/data-sequences.lst") or die "FATAL: can not read file $INDIR/data-sequences.lst, $!\n";
+	while (my $l = <$sfh>)
+	{
+		chomp($l);
+		# Line format: schema.sequence_name.value
+		if ($l =~ s/^([^\.]+)\.([^\.]+)\.(\d*)$/$1\.$2/)
+		{
+			my $schema = $1;
+			my $seqname = $2;
+			my $value = $3;
+			$schema =~ s/"//g;
+			$seqname =~ s/"//g;
+			if ($value ne '' and exists $list_dump_seq{$schema}{$seqname})
+			{
+				# With filter on tables no sequences are imported, only tables
+				next if ($#INC_TABLE >= 0 or $#EXC_TABLE >= 0);
+				# Exclude / include some schemas only?
+				next if ($#INC_SCHEMA >= 0 and !grep(/^\Q$schema\E$/, @INC_SCHEMA));
+				next if ($#EXC_SCHEMA >= 0 and grep(/^\Q$schema\E$/, @EXC_SCHEMA));
+				$seq{$schema}{$seqname}{value} = $value;
+				$seq{$schema}{$seqname}{fqdn}  = $l;
+			}
+		}
+	} 
+	close($sfh);
+
+	return %seq;
+}
