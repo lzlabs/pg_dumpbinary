@@ -56,5 +56,4 @@ ok( $? == 0 && $ret eq '', "Origin and restored database are exactly the same");
 # Clean all
 `rm -f src.sql dst.sql`;
 `rm -rf t/test_bin_dump`;
-#`dropdb test_bin_dump_orig >/dev/null 2>&1`;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
