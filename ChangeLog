@@ -1,3 +1,26 @@
+2020-08-20 - version 2.1
+
+This release fix some issues reported by users since last release
+and adds news improvements.
+
+  - Export of extension's table from extconfig tables list.
+  - Restore sequence values with data binary dump/restore.
+  - Add support to PostgreSQL v12 and the -f option to pg_restore.
+
+Full list of changes:
+ 
+  - Add regression test for sequences dump/restore.
+  - Add tables with automatic sequences in the test origin database.
+  - Fix regression test when destination database is not the same PG
+    version than the test file.
+  - Add restore of sequence values with the data binary dump/restore.
+  - Retrieve version of pg_restore command to be able to add the
+    option "-f -" for stdout output that is required with PG >= v12.
+  - Add support to condition for extension's tables.
+  - Add information about Date::Time Perl module installation.
+  - Add export of extension's table from extconfig tables list.
+  - Fix unmodified new URL to project.
+
 2019-12-08 - version 2.0
 
 This release fix some issues reported by users since last release
