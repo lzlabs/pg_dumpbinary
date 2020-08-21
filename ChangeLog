@@ -1,6 +1,11 @@
+2020-08-21 - version 2.2
+
+This short release adds support of sequences registered as configuration
+table dump in an extension.
+
 2020-08-20 - version 2.1
 
-This release fix some issues reported by users since last release
+This release fixes some issues reported by users since last release
 and adds news improvements.
 
   - Export of extension's table from extconfig tables list.
@@ -23,7 +28,7 @@ Full list of changes:
 
 2019-12-08 - version 2.0
 
-This release fix some issues reported by users since last release
+This release fixes some issues reported by users since last release
 and adds news features and improvements.
 
   - Add -a | --data-only option to pg_restorebinary to restore data

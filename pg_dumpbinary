@@ -20,7 +20,7 @@ use DBI;
 use DBD::Pg;
 use DateTime;
 
-my $VERSION = '2.1';
+my $VERSION = '2.2';
 my $PROGRAM = 'pg_dumpbinary';
 
 my $DBNAME = '';
@@ -572,6 +572,28 @@ sub gen_sequences_statements
 		$inf[4] = '"' . $inf[4] . '"' if ($inf[4] =~ /[^a-z0-9_]/);
 		$inf[5] = '"' . $inf[5] . '"' if ($inf[5] =~ /[^a-z0-9_]/);
 		print $fh "SELECT '$inf[4].$inf[5].'||last_value FROM $inf[4].$inf[5];\n";
+	}
+
+	# Get any sequences registered as an extension's configuration tables as
+	# they are logically not exported in the pre-data section.
+	my @extseq = `$PSQL $PG_OPT -d $DBNAME -AtXc "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY; SET TRANSACTION SNAPSHOT '$snapshot'; WITH extinf AS (SELECT unnest(extconfig) as id, unnest(extcondition) cond FROM pg_extension WHERE extconfig IS NOT NULL) SELECT n.nspname||'.'||c.relname||'.'||coalesce(t.cond, '') FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS n ON (c.relnamespace = n.oid) JOIN extinf t ON (t.id = c.oid) WHERE c.oid = t.id AND c.relkind = 'S';"`;
+	chomp(@extseq);
+	foreach my $t (@extseq)
+	{
+		if ($t =~ /^([^\.]+)\.([^\.]+)\.(.*)$/)
+		{
+			# Exclude / include some schemas only?
+			next if ($#INC_SCHEMA >= 0 and !grep(/^\Q$1\E$/, @INC_SCHEMA));
+			next if ($#EXC_SCHEMA >= 0 and grep(/^\Q$1\E$/, @EXC_SCHEMA));
+			# Exclude / include some tables only?
+			next if ($#INC_TABLE >= 0 and !grep(/^\Q$2\E$/, @INC_TABLE));
+			next if ($#EXC_TABLE >= 0 and grep(/^\Q$2\E$/, @EXC_TABLE));
+			my $n = $1;
+			my $s = $2;
+			$n = '"' . $n . '"' if ($n =~ /[^a-z0-9_]/);
+			$s = '"' . $s . '"' if ($s =~ /[^a-z0-9_]/);
+			print $fh "SELECT '$n.$s.'||last_value FROM $n.$s;\n";
+		}
 	}
 	close($fh);
 
