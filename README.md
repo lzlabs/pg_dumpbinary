@@ -14,8 +14,7 @@ pg_dumpbinary is useful in some situations:
   are returned as char/varchar/text which truncate data after
   the '\0'. In this case pg_dump will export data in the output
   type which will result in data lost.
-* any other case where pg_dump run in plain text, custom and
-  directory format is failing to export your data correctly.
+* any other case where binary format can be useful.
 
 If you are in this case pg_dumpbinary will help you by dumping the
 PostgreSQL database in binary format. In all other cases you must

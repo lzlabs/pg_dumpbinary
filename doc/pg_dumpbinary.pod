@@ -40,7 +40,7 @@ you are doing. pg_dumpbinary can help in some situation:
     user visible type is char/varchar/text which truncate data after
     the '\0'. In this case pg_dump will export the data in the visible
     type which will result in data lost.
-  - probably other case that I have still not encountered.
+  - any other case where binary format can  be useful.
 
 If you are in this case pg_dumpbinary will help you by dumping the
 PostgreSQL database in binary format.
