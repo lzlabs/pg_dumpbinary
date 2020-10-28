@@ -7,7 +7,7 @@
 # For license terms, see the LICENSE file.
 #
 # Author: Gilles Darold
-# Copyright: (C) 2019 LzLabs, GmbH
+# Copyright: (C) 2019-2020 LzLabs, GmbH
 #------------------------------------------------------------------------------
 use strict;
 
