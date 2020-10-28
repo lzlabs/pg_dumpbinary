@@ -1,3 +1,13 @@
+2020-10-28 - version 2.3
+
+This is a maintenance release to fix setting of sequences values after
+restoring data, sequences values from extensions was not restored.
+
+Other minor fixes:
+
+  - Update copyright year.
+  - Fix documentation. Thanks to Jean-Paul Argudo for the report.
+
 2020-08-21 - version 2.2
 
 This short release adds support of sequences registered as configuration

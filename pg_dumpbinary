@@ -20,7 +20,7 @@ use DBI;
 use DBD::Pg;
 use DateTime;
 
-my $VERSION = '2.2';
+my $VERSION = '2.3';
 my $PROGRAM = 'pg_dumpbinary';
 
 my $DBNAME = '';
