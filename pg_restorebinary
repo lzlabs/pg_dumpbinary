@@ -8,7 +8,7 @@
 # For license terms, see the LICENSE file.
 #
 # Author: Gilles Darold
-# Copyright: (C) 2019-2020 LzLabs, GmbH
+# Copyright: (C) 2019-2021 LzLabs, GmbH
 #------------------------------------------------------------------------------
 use strict;
 
@@ -39,6 +39,7 @@ my $VER       = 0;
 my $INFO      = 0;
 my $HELP      = 0;
 my $DATAONLY  = 0;
+my $TRUNCATE  = 0;
 
 my $DISABLE_TRIGGERS = 0;
 
@@ -113,6 +114,7 @@ GetOptions(
 	"v|version!"         => \$VER,
 	"help!"              => \$HELP,
 	"disable-triggers!"  => \$DISABLE_TRIGGERS,
+	"truncate!"          => \$TRUNCATE,
 );
 
 if ($VER)
@@ -225,6 +227,10 @@ foreach my $s (sort keys %tbl_list)
 		{
 			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" DISABLE TRIGGER ALL;});
 		}
+		if ($TRUNCATE)
+		{
+			push(@{ $distributed_table{$proc} }, qq{TRUNCATE "$s"."$t";});
+		}
 		push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
 		if ($DISABLE_TRIGGERS)
 		{
@@ -322,6 +328,7 @@ options:
   -v, --version                show program version
   --help                       show usage
   --disable-triggers           disable triggers during data restore
+  --truncate                   truncate the table before importing the data
 
 $msg
 };

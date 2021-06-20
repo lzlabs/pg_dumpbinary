@@ -142,6 +142,7 @@ options:
   -v, --version                show program version
   --help                       show usage
   --disable-triggers           disable triggers during data restore
+  --truncate                   truncate the table before importing the data
 
 ```
 
@@ -174,5 +175,5 @@ Gilles Darold.
 
 pg_dumpbinary is free software distributed under the PostgreSQL Licence.
 
-Copyright (c) 2019-2020 LzLabs, GmbH
+Copyright (c) 2019-2021 LzLabs, GmbH
 

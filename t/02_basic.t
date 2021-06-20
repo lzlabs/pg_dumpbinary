@@ -15,7 +15,7 @@ $ret = `perl pg_dumpbinary -j 2 -d test_bin_dump_orig t/test_bin_dump`;
 ok( $? == 0, "Dump test database in binary format");
 $ret = `perl pg_restorebinary -i t/test_bin_dump | grep "dbname: test_bin_dump_orig"`;
 ok( $? == 0 && $ret =~ /dbname: test_bin_dump_orig/, "Get information from the dump");
-$ret = `perl pg_restorebinary -d test_bin_dump_dest t/test_bin_dump`;
+$ret = `perl pg_restorebinary -d test_bin_dump_dest --truncate t/test_bin_dump`;
 ok( $? == 0, "Restore test database in binary format into test_bin_dump_dest");
 $ret = `pg_dump -d test_bin_dump_dest > t/sql/db_test_new.sql`;
 ok( $? == 0, "Dump destination database");
