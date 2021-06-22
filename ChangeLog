@@ -1,3 +1,10 @@
+2021-06-22 - version 2.4
+
+This new release adds a new option to pg_restorebinary --truncate
+to be able to truncate the tables before restoring data. This can
+be useful when pg_restorebinary is used to refresh data from some
+tables.
+
 2020-10-28 - version 2.3
 
 This is a maintenance release to fix setting of sequences values after
