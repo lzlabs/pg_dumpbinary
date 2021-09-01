@@ -1,3 +1,14 @@
+2021-09-01 - version 2.5
+
+This new release adds support to data restoration in tables with altered
+structure. pg_dumpbinary will now create a file meta-schema.table.txt that
+stores the tables columns list at export time. pg_restore binary will read
+this file if present or get le target columns list from the pre-data section
+dumped. The target list will be appended to the COPY FROM command to avoid
+error messages like "ERROR: row field count is 28, expected 29". This is
+necessary for tables from upgraded extensions with more columns or if you
+try to import data only into an existant table with more columns.
+
 2021-06-22 - version 2.4
 
 This new release adds a new option to pg_restorebinary --truncate
