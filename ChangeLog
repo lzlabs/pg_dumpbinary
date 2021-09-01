@@ -7,7 +7,7 @@ this file if present or get le target columns list from the pre-data section
 dumped. The target list will be appended to the COPY FROM command to avoid
 error messages like "ERROR: row field count is 28, expected 29". This is
 necessary for tables from upgraded extensions with more columns or if you
-try to import data only into an existant table with more columns.
+try to import data only into an existent table with more columns.
 
 2021-06-22 - version 2.4
 
