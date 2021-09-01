@@ -223,6 +223,10 @@ foreach my $s (sort keys %tbl_list)
 		my $tbl = quotemeta($t);
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, qq{\\echo Restoring data to table $s.$t});
+		# first of all get the table's column namesfrom the origin table
+		my @collist = get_column_list($s, $t);
+		my $target_list = '';
+		$target_list = "(" . join(',', @collist) . ")" if ($#collist >= 0);
 		if ($DISABLE_TRIGGERS)
 		{
 			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" DISABLE TRIGGER ALL;});
@@ -231,7 +235,7 @@ foreach my $s (sort keys %tbl_list)
 		{
 			push(@{ $distributed_table{$proc} }, qq{TRUNCATE "$s"."$t";});
 		}
-		push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
+		push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" $target_list FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
 		if ($DISABLE_TRIGGERS)
 		{
 			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" ENABLE TRIGGER ALL;});
@@ -458,3 +462,42 @@ sub get_sequence_values
 
 	return %seq;
 }
+
+sub get_column_list
+{
+	my ($schema, $table) = @_;
+
+	my @info = `$PGRESTORE -n $schema -t $table -f - $INDIR/pre-data.dmp | grep -v -- "^--" | grep -v "^\$"`;
+	if ($?) {
+		die "ERROR: pg_restore error to obtain dump information for table structure.\n";
+	}
+	chomp(@info);
+
+	# Take the list of columns targets from meta file
+	my @colnames = ();
+	my $file = quotemeta($schema) . '.' . quotemeta($table);
+	if (-e "$INDIR/meta-$file.txt")
+	{
+		open(my $lfh, '<', "$INDIR/meta-$file.txt") or die "FATAL: can not read file $INDIR/meta-$file.txt, $!\n";
+		@colnames = <$lfh>;
+		chomp(@colnames);
+		close($lfh);
+	}
+	# Read information from pre-data dump file
+	else
+	{
+		my $found = 0;
+		foreach my $l (@info)
+		{
+			$found = 1, next if ($l =~ /^CREATE TABLE/);
+			last if ($found && $l =~ /^\);$/);
+			if ($found && $l =~ /^\s+([^\s]+)\s+.*/) {
+				my $col = $1;
+				push(@colnames, $col) if ($col !~ /^(PRIMARY|CONSTRAINT|UNIQUE|CHECK|EXCLUDE|FOREIGN|DEFERRABLE|NOT|INITIALLY|MATCH|ON|REFERENCES)$/);
+			}
+		}
+	}
+
+	return @colnames;
+}
+

@@ -299,6 +299,8 @@ foreach my $s (sort keys %tbl_list)
 		# exclude partitionned table from export, COPY is not possible
 		next if (exists $partitions{$s}{$tbl_list{$s}[$i]});
 		my $file = quotemeta($s) . '.' . quotemeta($tbl_list{$s}[$i]);
+		# write target list to file
+		`$PSQL $PG_OPT -d $DBNAME -AtXc "SELECT quote_ident(attname) FROM pg_attribute a JOIN pg_class c ON (a.attrelid = c.oid) JOIN pg_namespace n ON (c.relnamespace = n.oid) WHERE c.relname = '$tbl_list{$s}[$i]' AND n.nspname = '$s' AND a.attnum > 0 ORDER BY a.attnum;" > "$OUTDIR/meta-$file.txt"`;
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
 		push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
