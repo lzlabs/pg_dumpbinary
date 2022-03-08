@@ -112,7 +112,9 @@ options:
   -u, --user NAME              connect as specified database user
   -v, --version                show program version
   --help                       show usage
-
+  --load-via-partition-root    dump data through partitioned table only, make
+                               the COPY statements target the root of the
+			       partitioning hierarchy rather than the partition
 ```
 
 ### pg_restorebinary

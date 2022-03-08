@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 12.2 (Ubuntu 12.2-4)
--- Dumped by pg_dump version 12.2 (Ubuntu 12.2-4)
+-- Dumped from database version 14.2 (Ubuntu 14.2-1.pgdg20.04+1)
+-- Dumped by pg_dump version 14.2 (Ubuntu 14.2-1.pgdg20.04+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -84,7 +84,6 @@ CREATE TABLE "BTEST".measurement_default (
     peaktemp integer,
     unitsales integer
 );
-ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_default DEFAULT;
 
 
 ALTER TABLE "BTEST".measurement_default OWNER TO gilles;
@@ -98,7 +97,6 @@ CREATE TABLE "BTEST".measurement_y2016 (
     peaktemp integer,
     unitsales integer
 );
-ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_y2016 FOR VALUES FROM ('2016-01-01') TO ('2017-01-01');
 
 
 ALTER TABLE "BTEST".measurement_y2016 OWNER TO gilles;
@@ -112,7 +110,6 @@ CREATE TABLE "BTEST".measurement_y2017 (
     peaktemp integer,
     unitsales integer
 );
-ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_y2017 FOR VALUES FROM ('2017-01-01') TO ('2018-01-01');
 
 
 ALTER TABLE "BTEST".measurement_y2017 OWNER TO gilles;
@@ -210,6 +207,27 @@ CREATE TABLE public.t2 (
 
 
 ALTER TABLE public.t2 OWNER TO gilles;
+
+--
+-- Name: measurement_default; Type: TABLE ATTACH; Schema: BTEST; Owner: gilles
+--
+
+ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_default DEFAULT;
+
+
+--
+-- Name: measurement_y2016; Type: TABLE ATTACH; Schema: BTEST; Owner: gilles
+--
+
+ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_y2016 FOR VALUES FROM ('2016-01-01') TO ('2017-01-01');
+
+
+--
+-- Name: measurement_y2017; Type: TABLE ATTACH; Schema: BTEST; Owner: gilles
+--
+
+ALTER TABLE ONLY "BTEST".measurement ATTACH PARTITION "BTEST".measurement_y2017 FOR VALUES FROM ('2017-01-01') TO ('2018-01-01');
+
 
 --
 -- Name: test_seq1 id; Type: DEFAULT; Schema: SEQNSP; Owner: gilles
@@ -573,21 +591,21 @@ CREATE INDEX measurement_y2017_unitsales_idx ON "BTEST".measurement_y2017 USING 
 
 
 --
--- Name: measurement_default_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: -
+-- Name: measurement_default_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: gilles
 --
 
 ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_default_unitsales_idx;
 
 
 --
--- Name: measurement_y2016_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: -
+-- Name: measurement_y2016_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: gilles
 --
 
 ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_y2016_unitsales_idx;
 
 
 --
--- Name: measurement_y2017_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: -
+-- Name: measurement_y2017_unitsales_idx; Type: INDEX ATTACH; Schema: BTEST; Owner: gilles
 --
 
 ALTER INDEX "BTEST".ixsales ATTACH PARTITION "BTEST".measurement_y2017_unitsales_idx;

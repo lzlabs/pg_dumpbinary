@@ -41,11 +41,13 @@ my $PG_FILTER = '';
 my $JOBS      = 1;
 my $VER       = 0;
 my $HELP      = 0;
+my $PARTITION_ROOT = 0;
 
 my $interrupt    = 0;
 my $child_count  = 0;
 my %RUNNING_PIDS = ();
 my $dbh          = undef;
+my %all_partition_names = ();
 
 my @post_conn = (
 	"SELECT pg_catalog.set_config('search_path', '', false);",
@@ -127,6 +129,7 @@ GetOptions(
 	"u|user=s"           => \$DBUSER,
 	"v|version!"         => \$VER,
 	"help!"              => \$HELP,
+	"load-via-partition-root!" => \$PARTITION_ROOT,
 );
 
 if ($VER)
@@ -296,18 +299,27 @@ foreach my $s (sort keys %tbl_list)
 {
 	for (my $i = 0; $i <= $#{$tbl_list{$s}}; $i++)
 	{
-		# exclude partitionned table from export, COPY is not possible
-		next if (exists $partitions{$s}{$tbl_list{$s}[$i]});
+		# exclude partitionned table from export, COPY will be done from the partitions
+		next if (!$PARTITION_ROOT && exists $partitions{$s}{$tbl_list{$s}[$i]});
+		# exclude all partition from the export when data are exported from the partition root
+		next if ($PARTITION_ROOT && exists $all_partition_names{$s}{$tbl_list{$s}[$i]});
 		my $file = quotemeta($s) . '.' . quotemeta($tbl_list{$s}[$i]);
 		# write target list to file
 		`$PSQL $PG_OPT -d $DBNAME -AtXc "SELECT quote_ident(attname) FROM pg_attribute a JOIN pg_class c ON (a.attrelid = c.oid) JOIN pg_namespace n ON (c.relnamespace = n.oid) WHERE c.relname = '$tbl_list{$s}[$i]' AND n.nspname = '$s' AND a.attnum > 0 ORDER BY a.attnum;" > "$OUTDIR/meta-$file.txt"`;
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
 		push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
-		if (!exists $ext_cond{$s}{$tbl_list{$s}[$i]} || $ext_cond{$s}{$tbl_list{$s}[$i]} eq '')
+		# Partitioned table dumped through partition root only must use the COPY (SELECT ...) TO syntax
+		if (exists $partitions{$s}{$tbl_list{$s}[$i]} && $PARTITION_ROOT)
+		{
+			push(@{ $distributed_table{$proc} }, qq{COPY (SELECT * FROM "$s"."$tbl_list{$s}[$i]" $ext_cond{$s}{$tbl_list{$s}[$i]}) TO stdout WITH (FORMAT binary);});
+		}
+		# If the table is not a foreign table dump with standard COPY syntax
+		elsif (!exists $ext_cond{$s}{$tbl_list{$s}[$i]} || $ext_cond{$s}{$tbl_list{$s}[$i]} eq '')
 		{
 			push(@{ $distributed_table{$proc} }, qq{COPY "$s"."$tbl_list{$s}[$i]" TO stdout WITH (FORMAT binary);});
 		}
+		# For foreign table use the form COPY (SELECT ...) TO
 		else
 		{
 			push(@{ $distributed_table{$proc} }, qq{COPY (SELECT * FROM "$s"."$tbl_list{$s}[$i]" $ext_cond{$s}{$tbl_list{$s}[$i]}) TO stdout WITH (FORMAT binary);});
@@ -433,6 +445,9 @@ options:
   -u, --user NAME              connect as specified database user
   -v, --version                show program version
   --help                       show usage
+  --load-via-partition-root    dump data through partitioned table only, make
+                               the COPY statements target the root of the
+			       partitioning hierarchy rather than the partition
 
 $msg
 };
@@ -495,7 +510,8 @@ sub get_partition_list
 		# ALTER TABLE ONLY schema.table ATTACH PARTITION schema.partition
 		if ($l =~ /ALTER TABLE ONLY ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* ATTACH PARTITION ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* /)
 		{
-			push(@{$part_list{$1}{$2}}, $3 . '.' . $4)
+			push(@{$part_list{$1}{$2}}, $3 . '.' . $4);
+			$all_partition_names{$3}{$4} = "$1.$2" if ($PARTITION_ROOT);
 		}
 	}
 
