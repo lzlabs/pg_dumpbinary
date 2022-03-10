@@ -1,3 +1,13 @@
+2022-03-10 - version 2.6
+
+This new release adds a new option --load-via-partition-root to pg_dumpbinary
+to dump/restore data through the partitioned table only not per partition like
+the default behavior. It makes the COPY statements target the root of the
+partitioning hierarchy rather than the partition, this may be useful when
+reloading data on a server where rows do not always fall into the same
+partitions as they did on the original server. This is the equivalent to
+the pg_dump option.
+
 2021-09-01 - version 2.5
 
 This new release adds support to data restoration in tables with altered
