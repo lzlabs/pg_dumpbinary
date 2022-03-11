@@ -132,6 +132,8 @@ options:
 
   -a, --data-only              restore only the data, no schema
   -d, --database DBNAME        database to restore, it must exists
+  -E, --exclude-ext EXTNAME    name of an extension to not restore, it can
+                               be used multiple time.
   -h, --host HOSTNAME          database server host or socket directory
   -i, --info                   print information about the dump and exit
   -j, --job NUM                use this many parallel jobs to restore
@@ -145,6 +147,7 @@ options:
   --help                       show usage
   --disable-triggers           disable triggers during data restore
   --truncate                   truncate the table before importing the data
+  --schema-exists              add an IF NOT EXISTS clause to CREATE SCHEMA
 
 ```
 

@@ -92,10 +92,6 @@ note that it is less portable across machine architectures and PostgreSQL
 versions. The binary format is very data type specific, it is not possible
 to import data in columns with a different type.
 
-=head1 TODO
-
-Add the ability to select tables or schemas to export.
-
 =head1 AUTHORS
 
 Gilles Darold.
