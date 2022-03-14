@@ -1,3 +1,18 @@
+2022-03-14 - version 2.7
+
+This release adds two new options to pg_restorebinary
+
+  -E, --exclude-ext EXTNAME    name of an extension to not restore, it can
+                               be used multiple time.
+  --schema-exists              add an IF NOT EXISTS clause to CREATE SCHEMA
+
+they can be useful to fix extensions dependencies for example when the creation
+order have changed. They can be created manually and be excluded from the
+restoration, the extension's configuration tables data are still restored, this
+just remove the extension creation statement. If a schema exists before the
+restoration, the --schema-exists will prevent the command to fail at schema
+creation by appending a IF NOT EXISTS clause.
+
 2022-03-10 - version 2.6
 
 This new release adds a new option --load-via-partition-root to pg_dumpbinary
