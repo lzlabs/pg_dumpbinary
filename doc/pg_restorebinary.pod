@@ -17,6 +17,7 @@ options:
   -d, --database DBNAME        database to restore, it must exists
   -E, --exclude-ext EXTNAME    name of an extension to not restore, it can
                                be used multiple time.
+  -f, --outfile FILENAME       generate a restore file usable with psql (debug).
   -h, --host HOSTNAME          database server host or socket directory
   -i, --info                   print information about the dump and exit
   -j, --job NUM                use this many parallel jobs to restore
