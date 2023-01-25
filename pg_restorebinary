@@ -106,7 +106,7 @@ GetOptions(
 	"a|data-only!"       => \$DATAONLY,
 	"d|database=s"       => \$DBNAME,
 	"E|exclude-ext=s"    => \@EXCLUDED_EXTENSION,
-	"f|outfile=s"        => \$OUTFILE,
+	"f|file=s"           => \$OUTFILE,
 	"h|host=s"           => \$DBHOST,
 	"i|info!"            => \$INFO,
 	"j|jobs=s"           => \$JOBS,
@@ -389,7 +389,9 @@ options:
   -d, --database DBNAME        database to restore, it must exists
   -E, --exclude-ext EXTNAME    name of an extension to not restore, it can
                                be used multiple time.
-  -f, --outfile FILENAME       generate a restore file usable with psql (debug).
+  -f, --file FILENAME          specify output file for generated script. No
+                               restore is performed, the resulting DDL and
+			       commands are written to the file.
   -h, --host HOSTNAME          database server host or socket directory
   -i, --info                   print information about the dump and exit
   -j, --job NUM                use this many parallel jobs to restore
