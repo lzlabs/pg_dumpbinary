@@ -42,6 +42,7 @@ my $DATAONLY  = 0;
 my $TRUNCATE  = 0;
 my @EXCLUDED_EXTENSION = ();
 my $IF_NOT_EXISTS_SCHEMA = 0;
+my $OUTFILE   = '';
 
 my $DISABLE_TRIGGERS = 0;
 
@@ -105,6 +106,7 @@ GetOptions(
 	"a|data-only!"       => \$DATAONLY,
 	"d|database=s"       => \$DBNAME,
 	"E|exclude-ext=s"    => \@EXCLUDED_EXTENSION,
+	"f|outfile=s"        => \$OUTFILE,
 	"h|host=s"           => \$DBHOST,
 	"i|info!"            => \$INFO,
 	"j|jobs=s"           => \$JOBS,
@@ -129,7 +131,7 @@ if ($VER)
 
 &usage() if ($HELP);
 
-if (!$DBNAME && !$INFO)
+if (!$DBNAME && !$INFO && !$OUTFILE)
 {
 	&usage("ERROR: you must specify a database to restore, see -d option\n");
 }
@@ -197,11 +199,17 @@ if ($INFO)
 # it will be done at inport of post data section.
 if (!$DATAONLY)
 {
-	print "Restoring pre data section into $DBNAME.\n";
+	my $output = "-d $DBNAME";
+	if ($OUTFILE) {
+		$output = "-f - > $OUTFILE";
+		print "Restoring pre data section into file $OUTFILE\n";
+	} else {
+		print "Restoring pre data section into database $DBNAME\n";
+	}
 
 	if (!$IF_NOT_EXISTS_SCHEMA && $#EXCLUDED_EXTENSION < 0)
 	{
-		`$PGRESTORE $PG_OPT $PG_FILTER -d $DBNAME $INDIR/pre-data.dmp`;
+		`$PGRESTORE $PG_OPT $PG_FILTER $INDIR/pre-data.dmp $output`;
 		if ($?) {
 			die "ERROR: pg_restore error to restore pre-data section.\n";
 		}
@@ -226,8 +234,8 @@ print STDERR "DEBUG: $PGRESTORE $PG_OPT $PG_FILTER $pgr_opt $INDIR/pre-data.dmp 
 			die "ERROR: pg_restore error to restore pre-data section with filters.\n";
 		}
 		# Now restore the schema generated with previous filters
-print STDERR "DEBUG: $PSQL $PG_OPT -d $DBNAME -f tmp_restore.sql\n";
-		`$PSQL $PG_OPT -d $DBNAME -f tmp_restore.sql`;
+print STDERR "DEBUG: $PSQL $PG_OPT -f tmp_restore.sql $output\n";
+		`$PSQL $PG_OPT -f tmp_restore.sql $output`;
 		if ($?) {
 			die "ERROR: psql fail to restore filtered pre-data section.\n";
 		}
@@ -251,8 +259,6 @@ foreach my $s (sort keys %tbl_list)
 {
 	foreach my $t (sort keys %{ $tbl_list{$s} })
 	{
-		# exclude partitionned table from import, COPY is not possible
-		next if (exists $partitions{$s}{$t});
 		my $sch = quotemeta($s);
 		my $tbl = quotemeta($t);
 		push(@{ $distributed_table{$proc} }, "\\o");
@@ -283,16 +289,24 @@ foreach my $s (sort keys %tbl_list)
 foreach my $p (sort keys %distributed_table)
 {
 
-	spawn sub
+	if (!$OUTFILE) {
+		spawn sub
+		{
+			my ($fh, $filename) = tempfile('pg_dumpbinXXXX', SUFFIX => '.tmp', DIR => $TMP_DIR, UNLINK => 1 );
+			if (defined $fh)
+			{
+				map { print $fh "$_\n"; } @{ $distributed_table{$p} };
+				close($fh);
+				`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+			}
+		};
+	}
+	else
 	{
-                my ($fh, $filename) = tempfile('pg_dumpbinXXXX', SUFFIX => '.tmp', DIR => $TMP_DIR, UNLINK => 1 );
-                if (defined $fh)
-                {
-			map { print $fh "$_\n"; } @{ $distributed_table{$p} };
-			close($fh);
-			`$PSQL $PG_OPT -d $DBNAME -f $filename`;
-		}
-	};
+		open(my $fh, '>>', "$OUTFILE") or die "FATAL: can not write to file $OUTFILE, $!\n";
+		map { print $fh "$_\n"; } @{ $distributed_table{$p} };
+		close($fh);
+	}
 }
 
 # Wait for all child processes to localdie
@@ -310,24 +324,43 @@ exit(1) if ($interrupt);
 # Restore the sequences values
 if (scalar keys %sequences)
 {
-	my ($fh, $filename) = tempfile('pg_dumpbinXXXX', SUFFIX => '.tmp', DIR => $TMP_DIR, UNLINK => 1 );
-	foreach my $s (sort keys %sequences)
-	{ 
-		foreach my $n (sort keys %{ $sequences{$s} })
+	if (!$OUTFILE)
+	{
+		my ($fh, $filename) = tempfile('pg_dumpbinXXXX', SUFFIX => '.tmp', DIR => $TMP_DIR, UNLINK => 1 );
+		foreach my $s (sort keys %sequences)
 		{ 
-			print $fh "SELECT pg_catalog.setval('$sequences{$s}{$n}{fqdn}', $sequences{$s}{$n}{value}, true);\n";
+			foreach my $n (sort keys %{ $sequences{$s} })
+			{ 
+				print $fh "SELECT pg_catalog.setval('$sequences{$s}{$n}{fqdn}', $sequences{$s}{$n}{value}, true);\n";
+			}
 		}
+		close($fh);
+		# Import file to set sequences values
+		`$PSQL $PG_OPT -d $DBNAME -f $filename`;
 	}
-	close($fh);
-	# Import file to set sequences values
-	`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+	else
+	{
+		open(my $fh, '>>', "$OUTFILE") or die "FATAL: can not write to file $OUTFILE, $!\n";
+		foreach my $s (sort keys %sequences)
+		{ 
+			foreach my $n (sort keys %{ $sequences{$s} })
+			{ 
+				print $fh "SELECT pg_catalog.setval('$sequences{$s}{$n}{fqdn}', $sequences{$s}{$n}{value}, true);\n";
+			}
+		}
+		close($fh);
+	}
 }
 
 # Dump database post-data section
 if (!$DATAONLY)
 {
+	my $output = "-d $DBNAME";
+	if ($OUTFILE) {
+		$output = "-f - >> $OUTFILE";
+	}
 	print "Restoring post data section.\n";
-	`$PGRESTORE $PG_OPT $PG_FILTER -d $DBNAME -j $JOBS $INDIR/post-data.dmp`;
+	`$PGRESTORE $PG_OPT $PG_FILTER -j $JOBS $INDIR/post-data.dmp $output`;
 	if ($?) {
 		die "ERROR: pg_restore error for post-data section.\n";
 	}
@@ -346,7 +379,7 @@ sub usage
 Program used to restore a PostgreSQL binary dump done with pg_dumpbinary.
 It can not be used to restore other PostgreSQL dump.
 
-usage: pg_restorebinary [options] -d dbname backup_dir
+usage: pg_restorebinary [options] [-d dbname | -f outfile.sql] backup_dir
 
   backup_dir   directory where backup files to restore will be read.
                It must be a directory created by pg_dumpbinary.
@@ -356,6 +389,7 @@ options:
   -d, --database DBNAME        database to restore, it must exists
   -E, --exclude-ext EXTNAME    name of an extension to not restore, it can
                                be used multiple time.
+  -f, --outfile FILENAME       generate a restore file usable with psql (debug).
   -h, --host HOSTNAME          database server host or socket directory
   -i, --info                   print information about the dump and exit
   -j, --job NUM                use this many parallel jobs to restore
