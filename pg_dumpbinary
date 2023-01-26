@@ -502,16 +502,36 @@ sub get_partition_list
 
 	my $pgr_opt = '';
 	$pgr_opt = '-f -' if ($pgrestore_version >= 12);
-	my @list =  `$PGRESTORE $pgr_opt "$OUTDIR/pre-data.dmp" | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	my @list =  `$PGRESTORE $pgr_opt "$OUTDIR/pre-data.dmp"`;
 	chomp(@list);
 
+	my $current_table = '';
+	my $current_schema = '';
 	foreach my $l (@list)
 	{
-		# ALTER TABLE ONLY schema.table ATTACH PARTITION schema.partition
-		if ($l =~ /ALTER TABLE ONLY ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* ATTACH PARTITION ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* /)
+		if ($l =~ /CREATE (?:UNLOGGED |TEMPORARY |FOREIGN )?TABLE ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* \(/)
 		{
+			$current_schema = $1;
+			$current_table = $2;
+		}
+		# ALTER TABLE ONLY schema.table ATTACH PARTITION schema.partition
+		elsif ($l =~ /ALTER TABLE ONLY ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* ATTACH PARTITION ["]*([^"\.]+)["]*\.["]*([^"\s]+)["]* /)
+		{
+			# register partition tables
 			push(@{$part_list{$1}{$2}}, $3 . '.' . $4);
 			$all_partition_names{$3}{$4} = "$1.$2" if ($PARTITION_ROOT);
+		}
+		elsif ($l =~ /PARTITION BY .*/)
+		{
+			# register partitioned tables
+			@{$part_list{$current_schema}{$current_table}} = ();
+		}
+
+		# reset current schema+tablename
+		if ($l =~ /;/)
+		{
+			$current_schema = '';
+			$current_table = '';
 		}
 	}
 
