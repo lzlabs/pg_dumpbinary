@@ -172,7 +172,7 @@ else
 
 # We need to retrieve the version of pg_restore about
 # option -f - that is required with PG >= v12
-my $pgrestore_version = `$PGRESTORE --version | awk '{print \$3}'`;
+my $pgrestore_version = eval_command("$PGRESTORE --version | awk '{print \$3}'");
 chomp($pgrestore_version);
 
 # Look at backup information
@@ -297,7 +297,7 @@ foreach my $p (sort keys %distributed_table)
 			{
 				map { print $fh "$_\n"; } @{ $distributed_table{$p} };
 				close($fh);
-				`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+				&eval_command("$PSQL $PG_OPT -d $DBNAME -f $filename");
 			}
 		};
 	}
@@ -336,7 +336,7 @@ if (scalar keys %sequences)
 		}
 		close($fh);
 		# Import file to set sequences values
-		`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+		&eval_command("$PSQL $PG_OPT -d $DBNAME -f $filename");
 	}
 	else
 	{
@@ -413,6 +413,27 @@ $msg
 }
 
 ####
+# Execute a system command and check its code result.
+# Exit with the code returned in case of error.
+# With success it returns the command output.
+####
+sub eval_command
+{
+	my $cmd = shift;
+
+	my @result = `$cmd`;
+
+	my $exit_val = $? >> 8;
+	if ($exit_val)
+	{
+		print STDERR "ERROR running command: $cmd\n" if ($exit_val);
+		exit 1;
+	}
+
+	return wantarray ? @result : $result[0];
+}
+
+####
 # Return a hash of array corresponding to the
 # list of files to restore per schema and table
 ####
@@ -448,7 +469,7 @@ sub get_partition_list
 
 	my $pgr_opt = '';
 	$pgr_opt = '-f -' if ($pgrestore_version >= 12);
-	my @list =  `$PGRESTORE $pgr_opt $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
+	my @list = eval_command("$PGRESTORE $pgr_opt $INDIR/pre-data.dmp | grep \"ALTER TABLE ONLY .* ATTACH PARTITION \"");
 	chomp(@list);
 
 	foreach my $l (@list)
