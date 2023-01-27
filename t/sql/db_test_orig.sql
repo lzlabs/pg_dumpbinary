@@ -62,6 +62,20 @@ CREATE TABLE "BTEST"."T1" (
 ALTER TABLE "BTEST"."T1" OWNER TO gilles;
 
 --
+-- Name: empty_measurement; Type: TABLE; Schema: BTEST; Owner: gilles
+--
+
+CREATE TABLE "BTEST".empty_measurement (
+    logdate date NOT NULL,
+    peaktemp integer,
+    unitsales integer
+)
+PARTITION BY RANGE (logdate);
+
+
+ALTER TABLE "BTEST".empty_measurement OWNER TO gilles;
+
+--
 -- Name: measurement; Type: TABLE; Schema: BTEST; Owner: gilles
 --
 
