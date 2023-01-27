@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use Test::Simple tests => 10;
+use Test::Simple tests => 11;
 
 my $ret = ``;
 `dropdb test_bin_dump_orig >/dev/null 2>&1`;
@@ -27,6 +27,9 @@ ok( $? == 0 && `ls t/test_bin_dump/meta-BTEST.measurement* | wc -l` == 3, "Dump 
 `rm -rf t/test_bin_dump/ >/dev/null 2>&1`;
 $ret = `perl pg_dumpbinary --load-via-partition-root -d test_bin_dump_orig t/test_bin_dump`;
 ok( $? == 0 && `ls t/test_bin_dump/meta-BTEST.measurement* | wc -l` == 1, "Dump data through partition root only");
+$ret = `diff t/sql/db_test_new.sql t/sql/db_test_orig.sql | grep -vE -- "^(--|[123456789]|[<>] SET |[<>] --)"`;
+ok( $ret eq '', "Differences between databases with use of --load-via-partition-root.");
+`cp -rf t/test_bin_dump /tmp/`;
 
 `rm -rf t/test_bin_dump`;
 `rm t/sql/db_test_new.sql`;
