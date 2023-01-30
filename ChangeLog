@@ -1,3 +1,26 @@
+2023-01-30 - version 2.8
+
+This release adds some new features to pg_restorebinary and fix some issues
+reported since last release.
+
+  - Force pg_restorebinary to stop on pg_restore or psql system command error,
+    print the failing command and exit with code 1. Thanks to Mike Tefft for
+    the feature request.
+  - Add option -f, --outfile to generate a restore file usable with psql.
+    The purpose of this option is to be able to debug pg_dumprestore by
+    looking at the generated DDL and \copy commands.
+
+Full list of changes:
+
+  - Fix pg_dumpbinary failure in dumping partition less partitioned tables.
+    Thanks to Mike Tefft for the report.
+  - Add regression test on restoring dump with the --load-via-partition-root
+    option.
+  - Add regression test for partitioned table without partition.
+  - Fix restore of data in a partitioned table when --load-via-partition-root
+    was used with the pg_dumpbinary command. Thanks to Mike Tefft for the
+    report.
+
 2022-03-14 - version 2.7
 
 This release adds two new options to pg_restorebinary
