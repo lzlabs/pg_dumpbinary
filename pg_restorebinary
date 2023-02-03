@@ -234,8 +234,8 @@ print STDERR "DEBUG: $PGRESTORE $PG_OPT $PG_FILTER $pgr_opt $INDIR/pre-data.dmp 
 			die "ERROR: pg_restore error to restore pre-data section with filters.\n";
 		}
 		# Now restore the schema generated with previous filters
-print STDERR "DEBUG: $PSQL $PG_OPT -f tmp_restore.sql $output\n";
-		`$PSQL $PG_OPT -f tmp_restore.sql $output`;
+print STDERR "DEBUG: $PSQL $PG_OPT -v ON_ERROR_STOP=1 -f tmp_restore.sql $output\n";
+		`$PSQL $PG_OPT -v ON_ERROR_STOP=1 -f tmp_restore.sql $output`;
 		if ($?) {
 			die "ERROR: psql fail to restore filtered pre-data section.\n";
 		}
@@ -285,7 +285,7 @@ foreach my $s (sort keys %tbl_list)
 	}
 }
 
-# with the per process dedicated tables to export.
+# with the per process dedicated tables to restore.
 foreach my $p (sort keys %distributed_table)
 {
 
@@ -297,7 +297,7 @@ foreach my $p (sort keys %distributed_table)
 			{
 				map { print $fh "$_\n"; } @{ $distributed_table{$p} };
 				close($fh);
-				&eval_command("$PSQL $PG_OPT -d $DBNAME -f $filename");
+				&eval_command("$PSQL $PG_OPT -v ON_ERROR_STOP=1 -d $DBNAME -f $filename");
 			}
 		};
 	}
@@ -336,7 +336,7 @@ if (scalar keys %sequences)
 		}
 		close($fh);
 		# Import file to set sequences values
-		&eval_command("$PSQL $PG_OPT -d $DBNAME -f $filename");
+		&eval_command("$PSQL $PG_OPT -v ON_ERROR_STOP=1 -d $DBNAME -f $filename");
 	}
 	else
 	{
