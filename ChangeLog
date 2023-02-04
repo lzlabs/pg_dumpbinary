@@ -1,3 +1,13 @@
+2023-02-04 - version 2.9
+
+This is a maintenance release to fix two problems in pg_restorebinary introduced
+in last release.
+
+  - pg_restorebinary was always reporting an error from system command when the
+    dump does not contain a partitioned table.
+  - Fix exit code of pg_restorebinary when a child dies and interrupt the restore
+    process.
+
 2023-01-30 - version 2.8
 
 This release adds some new features to pg_restorebinary and fix some issues
