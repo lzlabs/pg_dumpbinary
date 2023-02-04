@@ -52,6 +52,8 @@ my $interrupt = 0;
 my $child_count = 0;
 my %RUNNING_PIDS= ();
 
+my $parent_pid = $$;
+
 ####
 # Method used to fork as many child as wanted,
 # must be declared at top if the program.
@@ -67,13 +69,17 @@ sub spawn
 	}
 
 	my $pid;
-	if (!defined($pid = fork)) {
+	if (!defined($pid = fork))
+	{
 		print STDERR "Error: cannot fork: $!\n";
 		return;
-	} elsif ($pid) {
+	}
+	elsif ($pid)
+	{
 		$RUNNING_PIDS{$pid} = $pid;
 		return; # the parent
 	}
+
 	# the child -- go spawn
 	$< = $>;
 	$( = $); # suid progs only
@@ -81,6 +87,23 @@ sub spawn
 	exit &$coderef();
 }
 
+
+# Child reports error
+sub child_error
+{
+	my $sig = shift;
+
+	$interrupt = 1;
+
+	print STDERR "An error occurs from a child process, aborting...\n";
+	if ($^O !~ /MSWin32|dos/i) {
+		1 while wait != -1;
+		$SIG{INT} = \&wait_child;
+		$SIG{TERM} = \&wait_child;
+		$SIG{USR1} = \&child_error;
+	}
+	_exit(1);
+}
 
 # With multiprocess we need to wait for all children
 sub wait_child
@@ -99,6 +122,7 @@ sub wait_child
 }
 $SIG{INT} = \&wait_child;
 $SIG{TERM} = \&wait_child;
+$SIG{USR1} = \&child_error;
 
 $| = 1;
 
@@ -285,7 +309,7 @@ foreach my $s (sort keys %tbl_list)
 	}
 }
 
-# with the per process dedicated tables to restore.
+# Use the -j processes to restore tables data
 foreach my $p (sort keys %distributed_table)
 {
 
@@ -312,10 +336,10 @@ foreach my $p (sort keys %distributed_table)
 # Wait for all child processes to localdie
 while (scalar keys %RUNNING_PIDS > 0)
 {
-        my $kid = waitpid(-1, WNOHANG);
-        if ($kid > 0) {
-                delete $RUNNING_PIDS{$kid};
-        }
+	my $kid = waitpid(-1, WNOHANG);
+	if ($kid > 0) {
+		delete $RUNNING_PIDS{$kid};
+	}
 	usleep(50000);
 }
 
@@ -426,7 +450,8 @@ sub eval_command
 	my $exit_val = $? >> 8;
 	if ($exit_val)
 	{
-		print STDERR "ERROR running command: $cmd\n" if ($exit_val);
+		print STDERR "ERROR running command: $cmd\n";
+		kill USR1 => $parent_pid; 
 		exit 1;
 	}
 
@@ -469,7 +494,7 @@ sub get_partition_list
 
 	my $pgr_opt = '';
 	$pgr_opt = '-f -' if ($pgrestore_version >= 12);
-	my @list = eval_command("$PGRESTORE $pgr_opt $INDIR/pre-data.dmp | grep \"ALTER TABLE ONLY .* ATTACH PARTITION \"");
+	my @list = `$PGRESTORE $pgr_opt $INDIR/pre-data.dmp | grep "ALTER TABLE ONLY .* ATTACH PARTITION "`;
 	chomp(@list);
 
 	foreach my $l (@list)
