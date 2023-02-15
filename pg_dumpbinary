@@ -63,6 +63,8 @@ my @post_conn = (
 	"BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY;"
 );
 
+my $parent_pid = $$;
+
 ####
 # Method used to fork as many child as wanted,
 # must be declared at top if the program.
@@ -95,6 +97,23 @@ sub spawn
 
 $SIG{'CHLD'} = 'DEFAULT';
 
+# Child reports error
+sub child_error
+{
+	my $sig = shift;
+
+	$interrupt = 1;
+
+	print STDERR "An error occurs from a child process, aborting...\n";
+	if ($^O !~ /MSWin32|dos/i) {
+		1 while wait != -1;
+		$SIG{INT} = \&wait_child;
+		$SIG{TERM} = \&wait_child;
+		$SIG{USR1} = \&child_error;
+	}
+	_exit(1);
+}
+
 # With multiprocess we need to wait for all children
 sub wait_child
 {
@@ -114,6 +133,7 @@ sub wait_child
 }
 $SIG{INT} = \&wait_child;
 $SIG{TERM} = \&wait_child;
+$SIG{USR1} = \&child_error;
 
 $| = 1;
 
@@ -209,6 +229,9 @@ if ($pgversion < 9.2)
 # We need to retrieve the version of pg_restore about
 # option -f - that is required with PG >= v12
 my $pgrestore_version = `$PGRESTORE --version | awk '{print \$3}'`;
+if ($?) {
+	die "ERROR: cannot read pg_restore version.\n";
+}
 chomp($pgrestore_version);
 
 # Be sure that the host is not in recovery mode or that we have PG >= 10
@@ -267,7 +290,6 @@ spawn sub
 		}
 		sleep(1);
 	}
-
 };
 
 # Dump database pre-data section
@@ -306,6 +328,9 @@ foreach my $s (sort keys %tbl_list)
 		my $file = quotemeta($s) . '.' . quotemeta($tbl_list{$s}[$i]);
 		# write target list to file
 		`$PSQL $PG_OPT -d $DBNAME -AtXc "SELECT quote_ident(attname) FROM pg_attribute a JOIN pg_class c ON (a.attrelid = c.oid) JOIN pg_namespace n ON (c.relnamespace = n.oid) WHERE c.relname = '$tbl_list{$s}[$i]' AND n.nspname = '$s' AND a.attnum > 0 ORDER BY a.attnum;" > "$OUTDIR/meta-$file.txt"`;
+		if ($?) {
+			die "ERROR: psql fail to write target list.\n";
+		}
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
 		push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
@@ -349,7 +374,8 @@ foreach my $p (sort keys %distributed_table)
 			print $fh "\\o\n";
 			map { print $fh "$_\n"; } @{ $distributed_table{$p} };
 			close($fh);
-			`$PSQL $PG_OPT -d $DBNAME -f $filename`;
+			my $cmd = "$PSQL $PG_OPT -v ON_ERROR_STOP=1 -d $DBNAME -f $filename";
+			&eval_command($cmd);
 
 			# Remove empty gzipped data file
 			foreach my $t (@{ $distributed_table{$p} } )
@@ -462,6 +488,9 @@ sub get_table_list
 {
 	# Get regular tables
 	my @list =  `$PGRESTORE -l "$OUTDIR/pre-data.dmp" | grep " TABLE "`;
+	if ($?) {
+		die "ERROR: pg_restore fail to get regular tables list.\n";
+	}
 	chomp(@list);
 
 	foreach my $l (@list)
@@ -477,6 +506,9 @@ sub get_table_list
 	# they are logically not exported in the pre-data section.
 	# Sequences are exclude from this export, they will be exported later
 	my @exttbl = `$PSQL $PG_OPT -d $DBNAME -AtXc "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY; SET TRANSACTION SNAPSHOT '$snapshot'; WITH extinf AS (SELECT unnest(extconfig) as id, unnest(extcondition) cond FROM pg_extension WHERE extconfig IS NOT NULL) SELECT n.nspname||'.'||c.relname||'.'||coalesce(t.cond, '') FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS n ON (c.relnamespace = n.oid) JOIN extinf t ON (t.id = c.oid) WHERE c.oid = t.id AND c.relkind = 'r';"`;
+	if ($?) {
+		die "ERROR: psql fail to start a repeatable read transaction.\n";
+	}
 	chomp(@exttbl);
 	foreach my $t (@exttbl)
 	{
@@ -503,6 +535,9 @@ sub get_partition_list
 	my $pgr_opt = '';
 	$pgr_opt = '-f -' if ($pgrestore_version >= 12);
 	my @list =  `$PGRESTORE $pgr_opt "$OUTDIR/pre-data.dmp"`;
+	if ($?) {
+		die "ERROR: pg_restore fail to get partition list.\n";
+	}
 	chomp(@list);
 
 	my $current_table = '';
@@ -615,6 +650,9 @@ sub gen_sequences_statements
 	# Get any sequences registered as an extension's configuration tables as
 	# they are logically not exported in the pre-data section.
 	my @extseq = `$PSQL $PG_OPT -d $DBNAME -AtXc "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY; SET TRANSACTION SNAPSHOT '$snapshot'; WITH extinf AS (SELECT unnest(extconfig) as id, unnest(extcondition) cond FROM pg_extension WHERE extconfig IS NOT NULL) SELECT n.nspname||'.'||c.relname||'.'||coalesce(t.cond, '') FROM pg_catalog.pg_class AS c JOIN pg_catalog.pg_namespace AS n ON (c.relnamespace = n.oid) JOIN extinf t ON (t.id = c.oid) WHERE c.oid = t.id AND c.relkind = 'S';"`;
+	if ($?) {
+		die "ERROR: psql fail to start a repeatable read transaction.\n";
+	}
 	chomp(@extseq);
 	foreach my $t (@extseq)
 	{
@@ -635,7 +673,10 @@ sub gen_sequences_statements
 	}
 	close($fh);
 
-	my @res = `$PSQL $PG_OPT -d $DBNAME -At -f $fname`;
+	my @res = `$PSQL $PG_OPT -v ON_ERROR_STOP=1 -d $DBNAME -At -f $fname`;
+	if ($?) {
+		die "ERROR: psql fail to get sequences last values.\n";
+	}
 	chomp(@res);
 	foreach my $l (@res)
 	{
@@ -668,3 +709,27 @@ sub gen_sequences_statements
 		close($ofh);
 	}
 }
+
+####
+# Execute a system command and check its code result.
+# Exit with the code returned in case of error.
+# With success it returns the command output.
+####
+sub eval_command
+{
+	my $cmd = shift;
+
+	my @result = `$cmd`;
+
+	my $exit_val = $? >> 8;
+	if ($exit_val)
+	{
+		print STDERR "ERROR running command: $cmd\n";
+		kill USR1 => $parent_pid; 
+		exit 1;
+	}
+
+	return wantarray ? @result : $result[0];
+}
+
+
