@@ -285,6 +285,8 @@ foreach my $s (sort keys %tbl_list)
 	{
 		my $sch = quotemeta($s);
 		my $tbl = quotemeta($t);
+		$sch =~ s/\\"//g;
+		$tbl =~ s/\\"//g;
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, qq{\\echo Restoring data to table $s.$t});
 		# first of all get the table's column namesfrom the origin table
@@ -293,18 +295,18 @@ foreach my $s (sort keys %tbl_list)
 		$target_list = "(" . join(',', @collist) . ")" if ($#collist >= 0);
 		if ($DISABLE_TRIGGERS)
 		{
-			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" DISABLE TRIGGER ALL;});
+			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE $s.$t DISABLE TRIGGER ALL;});
 		}
 		if ($TRUNCATE)
 		{
-			push(@{ $distributed_table{$proc} }, qq{TRUNCATE "$s"."$t";});
+			push(@{ $distributed_table{$proc} }, qq{TRUNCATE $s.$t;});
 		}
 		if (-e "$INDIR/data-$sch.$tbl.bin.gz") {
-			push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" $target_list FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
+			push(@{ $distributed_table{$proc} }, qq{\\copy $s.$t $target_list FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
 		}
 		if ($DISABLE_TRIGGERS)
 		{
-			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" ENABLE TRIGGER ALL;});
+			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE $s.$t ENABLE TRIGGER ALL;});
 		}
 		$proc++;
 		$proc = 1 if ($proc > $JOBS);
