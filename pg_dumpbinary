@@ -42,6 +42,7 @@ my $JOBS      = 1;
 my $VER       = 0;
 my $HELP      = 0;
 my $PARTITION_ROOT = 0;
+my $NOCOMPRESS = 0;
 
 my $interrupt    = 0;
 my $child_count  = 0;
@@ -138,6 +139,7 @@ $SIG{USR1} = \&child_error;
 $| = 1;
 
 GetOptions(
+	"C|no-compress!"     => \$NOCOMPRESS,
 	"d|database=s"       => \$DBNAME,
 	"h|host=s"           => \$DBHOST,
 	"j|jobs=s"           => \$JOBS,
@@ -333,7 +335,11 @@ foreach my $s (sort keys %tbl_list)
 		}
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
-		push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
+		if ($NOCOMPRESS) {
+			push(@{ $distributed_table{$proc} }, qq{\\o $OUTDIR/data-$file.bin});
+		} else {
+			push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
+		}
 		# Partitioned table dumped through partition root only must use the COPY (SELECT ...) TO syntax
 		if (exists $partitions{$s}{$tbl_list{$s}[$i]} && $PARTITION_ROOT)
 		{
@@ -354,7 +360,7 @@ foreach my $s (sort keys %tbl_list)
 	}
 }
 
-# Fork a process to call psql to execute COPY in gziped binary format
+# Fork a process to call psql to execute COPY in binary format
 # with the per process dedicated tables to export.
 printf "Dumping data at %s\n", get_current_date();
 foreach my $p (sort keys %distributed_table)
@@ -377,15 +383,29 @@ foreach my $p (sort keys %distributed_table)
 			my $cmd = "$PSQL $PG_OPT -v ON_ERROR_STOP=1 -d $DBNAME -f $filename";
 			&eval_command($cmd);
 
-			# Remove empty gzipped data file
+			# Remove empty data file
 			foreach my $t (@{ $distributed_table{$p} } )
 			{
-				# extract filename part from COPY command
-				if ($t =~ /gzip -c - > "([^\"]+)"$/)
+				if ($NOCOMPRESS)
 				{
-					if ((stat("$1"))[7] == 35)
+					# extract filename part from COPY command
+					if ($t =~ /\\o (.*)$/)
 					{
-						unlink($1);
+						# When size is 21 bytes, it is considered as empty
+						if ((stat("$1"))[7] == 21) {
+							unlink($1);
+						}
+					}
+				}
+				else
+				{
+					# extract filename part from COPY command
+					if ($t =~ /gzip -c - > "([^\"]+)"$/)
+					{
+						# When size is 35 bytes, it is considered as empty
+						if ((stat("$1"))[7] == 35) {
+							unlink($1);
+						}
 					}
 				}
 			}
