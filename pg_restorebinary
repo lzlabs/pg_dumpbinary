@@ -299,7 +299,9 @@ foreach my $s (sort keys %tbl_list)
 		{
 			push(@{ $distributed_table{$proc} }, qq{TRUNCATE "$s"."$t";});
 		}
-		push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" $target_list FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
+		if (-e "$INDIR/data-$sch.$tbl.bin.gz") {
+			push(@{ $distributed_table{$proc} }, qq{\\copy "$s"."$t" $target_list FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
+		}
 		if ($DISABLE_TRIGGERS)
 		{
 			push(@{ $distributed_table{$proc} }, qq{ALTER TABLE "$s"."$t" ENABLE TRIGGER ALL;});
@@ -466,22 +468,23 @@ sub get_table_list
 {
 	my %tb_lst = ();
 
-	#data-SCHEMA.TABLE.bin.gz
-	opendir(DIR, "$INDIR") || die "FATAL: can't opendir $INDIR: $!";
-	my @list = grep { /^data-(.*)\.bin\.gz$/} readdir(DIR);
-        closedir(DIR);
+	my $pgr_opt = '';
+	$pgr_opt = '-f -' if ($pgrestore_version >= 12);
+	my @list = `$PGRESTORE $pgr_opt $INDIR/pre-data.dmp | grep -E "CREATE (UNLOGGED|TABLE) "`;
+	chomp(@list);
 
 	foreach my $l (@list)
 	{
-		$l =~ /^data-(.*)\.bin\.gz$/;
-		my @inf = split(/\./, $1);
-                # Exclude / include some schemas only?
-                next if ($#INC_SCHEMA >= 0 and !grep(/^\Q$inf[0]\E$/, @INC_SCHEMA));
-                next if ($#EXC_SCHEMA >= 0 and grep(/^\Q$inf[0]\E$/, @EXC_SCHEMA));
-                # Exclude / include some tables only?
-                next if ($#INC_TABLE >= 0 and !grep(/^\Q$inf[1]\E$/, @INC_TABLE));
-                next if ($#EXC_TABLE >= 0 and grep(/^\Q$inf[1]\E$/, @EXC_TABLE));
-		$tb_lst{$inf[0]}{$inf[1]} = $l;
+		if ($l =~ /^CREATE (?:UNLOGGED )?TABLE ([^\s]+) \($/) {
+			my @inf = split(/\./, $1);
+			# Exclude / include some schemas only?
+			next if ($#INC_SCHEMA >= 0 and !grep(/^\Q$inf[0]\E$/, @INC_SCHEMA));
+			next if ($#EXC_SCHEMA >= 0 and grep(/^\Q$inf[0]\E$/, @EXC_SCHEMA));
+			# Exclude / include some tables only?
+			next if ($#INC_TABLE >= 0 and !grep(/^\Q$inf[1]\E$/, @INC_TABLE));
+			next if ($#EXC_TABLE >= 0 and grep(/^\Q$inf[1]\E$/, @EXC_TABLE));
+			$tb_lst{$inf[0]}{$inf[1]} = $l;
+		}
 	}
 
 	return %tb_lst;
