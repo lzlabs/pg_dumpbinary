@@ -335,9 +335,13 @@ foreach my $s (sort keys %tbl_list)
 		}
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
-		if ($NOCOMPRESS) {
+		if ($NOCOMPRESS)
+		{
+			$file = $s . '.' . $tbl_list{$s}[$i];
 			push(@{ $distributed_table{$proc} }, qq{\\o $OUTDIR/data-$file.bin});
-		} else {
+		}
+		else
+		{
 			push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
 		}
 		# Partitioned table dumped through partition root only must use the COPY (SELECT ...) TO syntax
