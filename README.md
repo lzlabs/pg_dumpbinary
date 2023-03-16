@@ -101,6 +101,9 @@ usage: pg_dumpbinary -d dbname [options] backup_name
 		  when no output directory is provided.
 options:
 
+  -C, --compress-level 0-9     speed of the gzip compression using the specified
+                               digit, between 1 and 9, default to 6. Setting it
+                               to 0 disable the compression.
   -d, --database DBNAME        database to dump
   -h, --host HOSTNAME          database server host or socket directory
   -j, --job NUM                use this many parallel jobs to dump

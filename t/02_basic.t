@@ -30,7 +30,7 @@ ok( $? == 0 && `ls t/test_bin_dump/meta-BTEST.measurement* | wc -l` == 1, "Dump 
 $ret = `diff t/sql/db_test_new.sql t/sql/db_test_orig.sql | grep -vE -- "^(--|[123456789]|[<>] SET |[<>] --)"`;
 ok( $ret eq '', "Differences between databases with use of --load-via-partition-root.");
 `rm -rf t/test_bin_dump`;
-$ret = `perl pg_dumpbinary --no-compress -d test_bin_dump_orig t/test_bin_dump`;
+$ret = `perl pg_dumpbinary --compress-level=0 -d test_bin_dump_orig t/test_bin_dump`;
 ok( $? == 0 && `ls t/test_bin_dump/*.gz 2>/dev/null | wc -l` == 0, "Dump with no data compression");
 $ret = `perl pg_restorebinary -a -d test_bin_dump_dest --truncate t/test_bin_dump`;
 ok( $? == 0, "Restore uncompressed data into test_bin_dump_dest");

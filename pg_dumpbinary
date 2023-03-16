@@ -42,7 +42,7 @@ my $JOBS      = 1;
 my $VER       = 0;
 my $HELP      = 0;
 my $PARTITION_ROOT = 0;
-my $NOCOMPRESS = 0;
+my $COMPRESS_LEVEL = 6;
 
 my $interrupt    = 0;
 my $child_count  = 0;
@@ -139,7 +139,7 @@ $SIG{USR1} = \&child_error;
 $| = 1;
 
 GetOptions(
-	"C|no-compress!"     => \$NOCOMPRESS,
+	"C|compress-level=i" => \$COMPRESS_LEVEL,
 	"d|database=s"       => \$DBNAME,
 	"h|host=s"           => \$DBHOST,
 	"j|jobs=s"           => \$JOBS,
@@ -161,6 +161,10 @@ if ($VER)
 }
 
 &usage if ($HELP);
+
+if ($COMPRESS_LEVEL && ($COMPRESS_LEVEL < 0 or $COMPRESS_LEVEL > 9)) {
+	&usage("ERROR: compression level must be a number between 0 and 9\n");
+}
 
 if (!$DBNAME)
 {
@@ -335,14 +339,14 @@ foreach my $s (sort keys %tbl_list)
 		}
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
-		if ($NOCOMPRESS)
+		if (!$COMPRESS_LEVEL)
 		{
 			$file = $s . '.' . $tbl_list{$s}[$i];
 			push(@{ $distributed_table{$proc} }, qq{\\o $OUTDIR/data-$file.bin});
 		}
 		else
 		{
-			push(@{ $distributed_table{$proc} }, qq{\\o |gzip -c - > "$OUTDIR/data-$file.bin.gz"});
+			push(@{ $distributed_table{$proc} }, qq{\\o |gzip -$COMPRESS_LEVEL -c - > "$OUTDIR/data-$file.bin.gz"});
 		}
 		# Partitioned table dumped through partition root only must use the COPY (SELECT ...) TO syntax
 		if (exists $partitions{$s}{$tbl_list{$s}[$i]} && $PARTITION_ROOT)
@@ -390,7 +394,7 @@ foreach my $p (sort keys %distributed_table)
 			# Remove empty data file
 			foreach my $t (@{ $distributed_table{$p} } )
 			{
-				if ($NOCOMPRESS)
+				if (!$COMPRESS_LEVEL)
 				{
 					# extract filename part from COPY command
 					if ($t =~ /\\o (.*)$/)
@@ -404,7 +408,7 @@ foreach my $p (sort keys %distributed_table)
 				else
 				{
 					# extract filename part from COPY command
-					if ($t =~ /gzip -c - > "([^\"]+)"$/)
+					if ($t =~ /gzip -$COMPRESS_LEVEL -c - > "([^\"]+)"$/)
 					{
 						# When size is 35 bytes, it is considered as empty
 						if ((stat("$1"))[7] == 35) {
@@ -484,20 +488,23 @@ usage: pg_dumpbinary -d dbname [options] backup_name
 		  when no output directory is provided.
 options:
 
-  -d, --database DBNAME        database to dump
-  -h, --host HOSTNAME          database server host or socket directory
-  -j, --job NUM                use this many parallel jobs to dump
-  -n, --schema SCHEMA          dump the named schema(s) only
-  -N, --exclude-schema SCHEMA  do NOT dump the named schema(s)
-  -p, --port PORT              database server port number, default: 5432
-  -t, --table TABLE            dump named relation
-  -T, --exclude-table TABLE    do NOT dump the named table
-  -u, --user NAME              connect as specified database user
-  -v, --version                show program version
-  --help                       show usage
+  -C, --compress-level 0-9     speed of the gzip compression using the specified
+                               digit, between 1 and 9, default to 6. Setting it
+                               to 0 disable the compression.
+  -d, --database DBNAME        database to dump.
+  -h, --host HOSTNAME          database server host or socket directory.
+  -j, --job NUM                use this many parallel jobs to dump.
+  -n, --schema SCHEMA          dump the named schema(s) only.
+  -N, --exclude-schema SCHEMA  do NOT dump the named schema(s).
+  -p, --port PORT              database server port number, default: 5432.
+  -t, --table TABLE            dump named relation.
+  -T, --exclude-table TABLE    do NOT dump the named table.
+  -u, --user NAME              connect as specified database user.
+  -v, --version                show program version.
+  --help                       show usage.
   --load-via-partition-root    dump data through partitioned table only, make
                                the COPY statements target the root of the
-			       partitioning hierarchy rather than the partition
+			       partitioning hierarchy rather than the partition.
 
 $msg
 };
