@@ -528,7 +528,7 @@ sub set_filter_option
 	{
 		foreach my $s (@INC_SCHEMA)
 		{
-			$PG_FILTER .= " -n $s";
+			$PG_FILTER .= " -n '$s'";
 		}
 	}
 
@@ -536,7 +536,7 @@ sub set_filter_option
 	{
 		foreach my $s (@EXC_SCHEMA)
 		{
-			$PG_FILTER .= " -N $s";
+			$PG_FILTER .= " -N '$s'";
 		}
 	}
 
@@ -544,7 +544,7 @@ sub set_filter_option
 	{
 		foreach my $s (@INC_TABLE)
 		{
-			$PG_FILTER .= " -t $s";
+			$PG_FILTER .= " -t '$s'";
 		}
 	}
 
@@ -552,7 +552,7 @@ sub set_filter_option
 	{
 		foreach my $s (@EXC_TABLE)
 		{
-			$PG_FILTER .= " -T $s";
+			$PG_FILTER .= " -T '$s'";
 		}
 	}
 }
@@ -595,7 +595,7 @@ sub get_column_list
 {
 	my ($schema, $table) = @_;
 
-	my @info = `$PGRESTORE -n $schema -t $table -f - $INDIR/pre-data.dmp | grep -v -- "^--" | grep -v "^\$"`;
+	my @info = `$PGRESTORE -n '$schema' -t '$table' -f - $INDIR/pre-data.dmp | grep -v -- "^--" | grep -v "^\$"`;
 	if ($?) {
 		die "ERROR: pg_restore error to obtain dump information for table structure.\n";
 	}
