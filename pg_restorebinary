@@ -252,13 +252,11 @@ if (!$DATAONLY)
 			$noextension = '| grep -vE "(' . join('|', @EXCLUDED_EXTENSION) . ')"';
 		}
 		# we have to dump the list of objects to manipulate it
-print STDERR "DEBUG: $PGRESTORE $PG_OPT $PG_FILTER $pgr_opt $INDIR/pre-data.dmp $schema_change $noextension > tmp_restore.sql\n";
 		`$PGRESTORE $PG_OPT $PG_FILTER $pgr_opt $INDIR/pre-data.dmp $schema_change $noextension > tmp_restore.sql`;
 		if ($?) {
 			die "ERROR: pg_restore error to restore pre-data section with filters.\n";
 		}
 		# Now restore the schema generated with previous filters
-print STDERR "DEBUG: $PSQL $PG_OPT -v ON_ERROR_STOP=1 -f tmp_restore.sql $output\n";
 		`$PSQL $PG_OPT -v ON_ERROR_STOP=1 -f tmp_restore.sql $output`;
 		if ($?) {
 			die "ERROR: psql fail to restore filtered pre-data section.\n";
