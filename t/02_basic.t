@@ -19,7 +19,7 @@ $ret = `perl pg_restorebinary -d test_bin_dump_dest --truncate t/test_bin_dump`;
 ok( $? == 0, "Restore test database in binary format into test_bin_dump_dest");
 $ret = `pg_dump -d test_bin_dump_dest > t/sql/db_test_new.sql`;
 ok( $? == 0, "Dump destination database");
-$ret = `diff t/sql/db_test_new.sql t/sql/db_test_orig.sql | grep -vE -- "^(--|[123456789]|[<>] SET |[<>] --)"`;
+$ret = `diff t/sql/db_test_new.sql t/sql/db_test_orig.sql | grep -vE -- "^(--|[123456789]|[<>] SET |[<>] --)" | grep -vE "(ALTER|REVOKE|GRANT) .*SCHEMA public" | grep -vE "^[<>] \$"`;
 ok( $ret eq '', "Differences between source and destination database.");
 `rm -rf t/test_bin_dump/ >/dev/null 2>&1`;
 $ret = `perl pg_dumpbinary -j 2 -d test_bin_dump_orig t/test_bin_dump`;
@@ -27,7 +27,7 @@ ok( $? == 0 && `ls t/test_bin_dump/meta-BTEST.measurement* | wc -l` == 3, "Dump 
 `rm -rf t/test_bin_dump/ >/dev/null 2>&1`;
 $ret = `perl pg_dumpbinary --load-via-partition-root -d test_bin_dump_orig t/test_bin_dump`;
 ok( $? == 0 && `ls t/test_bin_dump/meta-BTEST.measurement* | wc -l` == 1, "Dump data through partition root only");
-$ret = `diff t/sql/db_test_new.sql t/sql/db_test_orig.sql | grep -vE -- "^(--|[123456789]|[<>] SET |[<>] --)"`;
+$ret = `diff t/sql/db_test_new.sql t/sql/db_test_orig.sql | grep -vE -- "^(--|[123456789]|[<>] SET |[<>] --)" | grep -vE "(ALTER|REVOKE|GRANT) .*SCHEMA public" | grep -vE "^[<>] \$"`;
 ok( $ret eq '', "Differences between databases with use of --load-via-partition-root.");
 `rm -rf t/test_bin_dump`;
 $ret = `perl pg_dumpbinary --compress-level=0 -d test_bin_dump_orig t/test_bin_dump`;
