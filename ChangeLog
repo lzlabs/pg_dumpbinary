@@ -1,3 +1,30 @@
+2023-03-30 - version 2.10
+
+This release adds a new option to pg_dumpbinary
+
+  -C, --compress-level 0-9   speed of the gzip compression using the specified
+                             digit, between 1 and 9, default to 6. Setting it
+                             to 0 disable the compression.
+
+and fixes several issues reported since last release.
+
+Full list of changes and acknowledgements:
+
+  - Fix regression tests to exclude from the diff output DDL on public schema.
+  - Quote schema and table names with pg_restore options -n/-N and -t/-T to
+    avoid system command error with object names containing character like $.
+    Thanks to Richard Barclay for the report.
+  - Remove two debug traces introduced in last release.
+  - Add -C / --compress-level pg_dumpbinary option to allow to choose the gzip
+    compression level. Thanks to Derek Morr for the suggestion.
+  - Fix duplicate double quoting of the schema+table when exporting data, now
+    that the list of table is extracted using pg_restore they are already
+    double quoted.
+  - Fix truncate not applied when the table was empty at dump time. Thanks to
+    Simon Beck for the report.
+  - Fix exit code of pg_dumpbinary when a copy child process exit with error.
+  - Add ON_ERROR_STOP=1 to stop the psql command on error in pg_dumpbinary.
+
 2023-02-04 - version 2.9
 
 This is a maintenance release to fix two problems in pg_restorebinary introduced
