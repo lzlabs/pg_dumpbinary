@@ -220,7 +220,7 @@ if ($INFO)
 }
 
 # Restoring database pre-data section without attaching partition
-# it will be done at inport of post data section.
+# it will be done at import of post data section.
 if (!$DATAONLY)
 {
 	my $output = "-d $DBNAME";
@@ -285,6 +285,8 @@ foreach my $s (sort keys %tbl_list)
 		my $tbl = quotemeta($t);
 		$sch =~ s/\\"//g;
 		$tbl =~ s/\\"//g;
+		next if (!-e "$INDIR/data-$sch.$tbl.bin.gz" && !-e "$INDIR/data-$sch.$tbl.bin");
+
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, qq{\\echo Restoring data to table $s.$t});
 		# first of all get the table's column namesfrom the origin table
@@ -491,6 +493,31 @@ sub get_table_list
 			next if ($#EXC_TABLE >= 0 and grep(/^["]*\Q$tb\E["]*$/, @EXC_TABLE));
 			$tb_lst{$inf[0]}{$inf[1]} = $l;
 		}
+	}
+
+	# Read list of extensions tables
+	if (-e "$INDIR/extensions-tables.lst")
+	{
+		open(my $ifh, '<', "$INDIR/extensions-tables.lst") or die "FATAL: can not read file $INDIR/extensions-tables.lst, $!\n";
+		while (my $l = <$ifh>)
+		{
+			chomp($l);
+			$l =~ s/^(.*)\|(.*)/$2/;
+			my $extens = $1;
+			my @inf = split(/\./, $2);
+			my $sch = $inf[0];
+			$sch =~ s/"//g;
+			my $tb = $inf[1];
+			$tb =~ s/"//g;
+			# Exclude / include some schemas only?
+			next if ($#INC_SCHEMA >= 0 and !grep(/^["]*\Q$sch\E["]*$/, @INC_SCHEMA));
+			next if ($#EXC_SCHEMA >= 0 and grep(/^["]*\Q$sch\E["]*$/, @EXC_SCHEMA));
+			# Exclude / include some tables only?
+			next if ($#INC_TABLE >= 0 and !grep(/^["]*\Q$tb\E["]*$/, @INC_TABLE));
+			next if ($#EXC_TABLE >= 0 and grep(/^["]*\Q$tb\E["]*$/, @EXC_TABLE));
+			$tb_lst{$inf[0]}{$inf[1]} = $l;
+		}
+		close($ifh);
 	}
 
 	return %tb_lst;

@@ -20,7 +20,7 @@ use DBI;
 use DBD::Pg;
 use DateTime;
 
-my $VERSION = '2.10';
+my $VERSION = '2.11';
 my $PROGRAM = 'pg_dumpbinary';
 
 my $DBNAME = '';
@@ -305,6 +305,24 @@ if ($?)
 {
 	$dbh->disconnect();
 	die "ERROR: pg_dump error to dump pre-data section.\n";
+}
+
+# Get list of extensions tables that will need to be restored
+my @ext_tables = `$PSQL $PG_OPT -d $DBNAME -AtXc "SET search_path TO ''; SELECT extname, unnest(extconfig)::regclass FROM pg_catalog.pg_extension WHERE extconfig IS NOT NULL"`;
+if ($?)
+{
+	$dbh->disconnect();
+	die "ERROR: can not get extensions tables that must be dumped.\n";
+}
+chomp(@ext_tables);
+shift(@ext_tables); # remove SET from the list
+if ($#ext_tables >= 0)
+{
+	open(my $of, '>', "$OUTDIR/extensions-tables.lst") or die "FATAL: can not write to file $OUTDIR/extensions-tables.lst, $!\n";
+	foreach my $l (@ext_tables) {
+		print $of "$l\n"
+	}
+	close($of);
 }
 
 # Retrieve the list of partition table
