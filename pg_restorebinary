@@ -509,6 +509,34 @@ sub get_table_list
 			$sch =~ s/"//g;
 			my $tb = $inf[1];
 			$tb =~ s/"//g;
+			next if exists ($tb_lst{$inf[0]}{$inf[1]});
+
+			# Exclude / include some schemas only?
+			next if ($#INC_SCHEMA >= 0 and !grep(/^["]*\Q$sch\E["]*$/, @INC_SCHEMA));
+			next if ($#EXC_SCHEMA >= 0 and grep(/^["]*\Q$sch\E["]*$/, @EXC_SCHEMA));
+			# Exclude / include some tables only?
+			next if ($#INC_TABLE >= 0 and !grep(/^["]*\Q$tb\E["]*$/, @INC_TABLE));
+			next if ($#EXC_TABLE >= 0 and grep(/^["]*\Q$tb\E["]*$/, @EXC_TABLE));
+
+			$tb_lst{$inf[0]}{$inf[1]} = $l;
+		}
+		close($ifh);
+	}
+	else
+	{
+		opendir(DIR, "$INDIR") || die "FATAL: can't opendir $INDIR: $!";
+		my @datafiles = grep { /^data-.*.bin(?:.gz)?$/} readdir(DIR);
+		closedir(DIR);
+		chomp(@datafiles);
+		map { s/^data-//; s/\.bin(?:\.gz)?$//; } @datafiles;
+		foreach my $l (@datafiles)
+		{
+			my @inf = split(/\./, $l);
+			my $sch = $inf[0];
+			my $tb = $inf[1];
+			$inf[0] = "\"$inf[0]\"" if ($inf[0] =~ /[^a-z0-9_\$]/ || $inf[0] =~ /^\d/);
+			$inf[1] = "\"$inf[1]\"" if ($inf[1] =~ /[^a-z0-9_\$]/ || $inf[1] =~ /^\d/);
+			next if exists ($tb_lst{$inf[0]}{$inf[1]});
 			# Exclude / include some schemas only?
 			next if ($#INC_SCHEMA >= 0 and !grep(/^["]*\Q$sch\E["]*$/, @INC_SCHEMA));
 			next if ($#EXC_SCHEMA >= 0 and grep(/^["]*\Q$sch\E["]*$/, @EXC_SCHEMA));
@@ -517,7 +545,6 @@ sub get_table_list
 			next if ($#EXC_TABLE >= 0 and grep(/^["]*\Q$tb\E["]*$/, @EXC_TABLE));
 			$tb_lst{$inf[0]}{$inf[1]} = $l;
 		}
-		close($ifh);
 	}
 
 	return %tb_lst;
