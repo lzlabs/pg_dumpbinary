@@ -1,3 +1,18 @@
+2023-05-23 - version 2.11
+
+This release fix a major issue during dump restore.
+
+  - Fix restoration of extensions tables from the dumps. Data from these tables
+    was not restored since the use of pg_restore pre-data section to retrieve
+    the list of tables from the dump. pg_dumpbinary now create a new file into
+    the dump directory: "extensions-tables.lst". At restore time, command line
+    filters on schemas and tables are also applied on this list if you need to
+    exclude some of them.
+
+  - Assume backward compatibility with old dumps that does not have the file
+    "extensions-tables.lst" generated.
+
+
 2023-03-30 - version 2.10
 
 This release adds a new option to pg_dumpbinary
