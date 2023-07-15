@@ -43,6 +43,7 @@ my $VER       = 0;
 my $HELP      = 0;
 my $PARTITION_ROOT = 0;
 my $COMPRESS_LEVEL = 6;
+my $SNAPSHOT_INFO_FILE = '/tmp/.snapshot_info';
 
 my $interrupt    = 0;
 my $child_count  = 0;
@@ -146,6 +147,7 @@ GetOptions(
 	"n|schema=s"         => \@INC_SCHEMA,
 	"N|exclude-schema=s" => \@EXC_SCHEMA,
 	"p|port=i"           => \$DBPORT,
+	"s|snapshot-file=s"  => \$SNAPSHOT_INFO_FILE,
 	"t|table=s"          => \@INC_TABLE,
 	"T|exclude-table=s"  => \@EXC_TABLE,
 	"u|user=s"           => \$DBUSER,
@@ -276,8 +278,8 @@ if (!$snapshot)
 }
 
 # Save snapshot information to file
-unlink(".snapshot_info") if (-e ".snapshot_info");
-open(my $sfh, '>', ".snapshot_info") or die "FATAL: can not save snapshot information to file .snapshot_info\n";
+unlink("$SNAPSHOT_INFO_FILE") if (-e "$SNAPSHOT_INFO_FILE");
+open(my $sfh, '>', "$SNAPSHOT_INFO_FILE") or die "FATAL: can not save snapshot information to file $SNAPSHOT_INFO_FILE\n";
 print $sfh $snapshot;
 close($sfh);
 
@@ -287,7 +289,7 @@ close($sfh);
 spawn sub
 {
 	my $old_time = time;
-	while (-e ".snapshot_info")
+	while (-e "$SNAPSHOT_INFO_FILE")
 	{
 		if (time > $old_time + 30)
 		{
@@ -464,7 +466,7 @@ if (!$interrupt)
 }
 
 # Remove the snapshot information file to terminate the last child process
-unlink(".snapshot_info");
+unlink("$SNAPSHOT_INFO_FILE");
 
 # Then wait for all child processes to localdie
 while (scalar keys %RUNNING_PIDS > 0)
@@ -515,6 +517,8 @@ options:
   -n, --schema SCHEMA          dump the named schema(s) only.
   -N, --exclude-schema SCHEMA  do NOT dump the named schema(s).
   -p, --port PORT              database server port number, default: 5432.
+  -s, --snapshot-file FILE     change the path to the snapshot information file
+                               used by multiprocess. Default: /tmp/snapshot_info
   -t, --table TABLE            dump named relation.
   -T, --exclude-table TABLE    do NOT dump the named table.
   -u, --user NAME              connect as specified database user.

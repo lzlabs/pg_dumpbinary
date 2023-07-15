@@ -110,6 +110,8 @@ options:
   -n, --schema SCHEMA          dump the named schema(s) only
   -N, --exclude-schema SCHEMA  do NOT dump the named schema(s)
   -p, --port PORT              database server port number, default: 5432
+  -s, --snapshot-file FILE     change the path to the snapshot information file
+                               used by multiprocess. Default: /tmp/snapshot_info
   -t, --table TABLE            dump named relation
   -T, --exclude-table TABLE    do NOT dump the named table
   -u, --user NAME              connect as specified database user
