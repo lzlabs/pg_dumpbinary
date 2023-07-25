@@ -1,3 +1,13 @@
+2023-07-25 - version 2.12
+
+This release fix a privilege issue during dump.
+
+  - Change default path to the snapshot_info file, it was .snapshot_info
+    created in the current directory but this can lead to privilege issues.
+    Moved to /tmp/snapshot_info by default.
+  - Add -s, --snapshot-file option to be able to change the path to the
+    snapshot information file used by multiprocess. Default: /tmp/snapshot_info
+
 2023-05-23 - version 2.11
 
 This release fix a major issue during dump restore.
