@@ -18,7 +18,7 @@ use File::Spec qw/ tmpdir /;
 use File::Temp qw/ tempfile /;
 use DBI;
 use DBD::Pg;
-use DateTime;
+use POSIX qw(strftime);
 
 my $VERSION = '2.12';
 my $PROGRAM = 'pg_dumpbinary';
@@ -632,14 +632,7 @@ sub get_partition_list
 ####
 sub get_current_date
 {
-    my $tz;
-    eval { $tz = DateTime::TimeZone->new( name => 'local' ); };
-    if ( $@ ) {
-        print "WARNING: cannot determine local timezone, using UTC\n";
-        $tz = DateTime::TimeZone->new( name => 'UTC' );
-    }
-    my $curdate = DateTime->now( time_zone => $tz );
-    return $curdate->strftime( '%FT%T' );
+    return strftime("%FT%T", localtime);
 }
 
 ####
