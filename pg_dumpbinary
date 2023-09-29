@@ -353,7 +353,7 @@ foreach my $s (sort keys %tbl_list)
 		next if ($PARTITION_ROOT && exists $all_partition_names{$s}{$tbl_list{$s}[$i]});
 		my $file = quotemeta($s) . '.' . quotemeta($tbl_list{$s}[$i]);
 		# write target list to file
-		`$PSQL $PG_OPT -d $DBNAME -AtXc "SELECT quote_ident(attname) FROM pg_attribute a JOIN pg_class c ON (a.attrelid = c.oid) JOIN pg_namespace n ON (c.relnamespace = n.oid) WHERE c.relname = '$tbl_list{$s}[$i]' AND n.nspname = '$s' AND a.attnum > 0 ORDER BY a.attnum;" > "$OUTDIR/meta-$file.txt"`;
+		`$PSQL $PG_OPT -d $DBNAME -AtXc "SELECT quote_ident(attname) FROM pg_attribute a JOIN pg_class c ON (a.attrelid = c.oid) JOIN pg_namespace n ON (c.relnamespace = n.oid) WHERE c.relname = '$tbl_list{$s}[$i]' AND n.nspname = '$s' AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum;" > "$OUTDIR/meta-$file.txt"`;
 		if ($?) {
 			die "ERROR: psql fail to write target list.\n";
 		}
