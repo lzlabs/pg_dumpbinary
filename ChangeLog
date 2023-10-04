@@ -1,3 +1,10 @@
+2023-09-04 - version 2.13
+
+This release fix a restore issue with dropped columns.
+
+ - Fix export of tables columns list to exclude those where attisdropped
+   is true. Thanks to Mike Tefft for the report.
+
 2023-07-25 - version 2.12
 
 This release fix a privilege issue during dump.
