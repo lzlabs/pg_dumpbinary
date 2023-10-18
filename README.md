@@ -101,6 +101,8 @@ usage: pg_dumpbinary -d dbname [options] backup_name
 		  when no output directory is provided.
 options:
 
+  -A, --attach SNAPSHOT        attach pg_dumpbinary to an existing snapshot
+                               instead of creating a dedicated one.
   -C, --compress-level 0-9     speed of the gzip compression using the specified
                                digit, between 1 and 9, default to 6. Setting it
                                to 0 disable the compression.
