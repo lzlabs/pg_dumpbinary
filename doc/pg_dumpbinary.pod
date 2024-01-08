@@ -31,6 +31,7 @@ options:
   -T, --exclude-table TABLE    do NOT dump the named table
   -u, --user NAME              connect as specified database user
   -v, --version                show program version
+  -V, --verbose                display the list of tables parts of the dump.
   --help                       show usage
   --load-via-partition-root    dump data through partitioned table only, make
                                the COPY statements target the root of the

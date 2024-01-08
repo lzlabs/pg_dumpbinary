@@ -45,6 +45,7 @@ my $PARTITION_ROOT = 0;
 my $COMPRESS_LEVEL = 6;
 my $SNAPSHOT_INFO_FILE = '/tmp/.snapshot_info';
 my $ATTACH_SNAPSHOT = '';
+my $VERBOSE   = 0;
 
 my $interrupt    = 0;
 my $child_count  = 0;
@@ -154,6 +155,7 @@ GetOptions(
 	"T|exclude-table=s"  => \@EXC_TABLE,
 	"u|user=s"           => \$DBUSER,
 	"v|version!"         => \$VER,
+	"V|verbose!"         => \$VERBOSE,
 	"help!"              => \$HELP,
 	"load-via-partition-root!" => \$PARTITION_ROOT,
 );
@@ -371,6 +373,7 @@ foreach my $s (sort keys %tbl_list)
 		}
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
+		printf "Adding to export list table $s.$tbl_list{$s}[$i]\n" if ($VERBOSE);
 		if (!$COMPRESS_LEVEL)
 		{
 			$file = $s . '.' . $tbl_list{$s}[$i];
@@ -426,6 +429,7 @@ foreach my $p (sort keys %distributed_table)
 			# Remove empty data file
 			foreach my $t (@{ $distributed_table{$p} } )
 			{
+
 				if (!$COMPRESS_LEVEL)
 				{
 					# extract filename part from COPY command
@@ -537,6 +541,7 @@ options:
   -T, --exclude-table TABLE    do NOT dump the named table.
   -u, --user NAME              connect as specified database user.
   -v, --version                show program version.
+  -V, --verbose                display the list of tables parts of the dump.
   --help                       show usage.
   --load-via-partition-root    dump data through partitioned table only, make
                                the COPY statements target the root of the
