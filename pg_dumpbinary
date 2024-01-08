@@ -706,6 +706,10 @@ sub gen_sequences_statements
 	{
 		# 391; 1259 1279956 SEQUENCE schname seq_name owner
 		my @inf = split(/\s/, $l);
+		# Try to fix sequence name with space.
+		# Space in schema are not handled.
+		pop(@inf);
+		$inf[5] = join(' ', @inf[5..$#inf]);
 		# Quote identifiers
 		$inf[4] = '"' . $inf[4] . '"' if ($inf[4] =~ /[^a-z0-9_]/);
 		$inf[5] = '"' . $inf[5] . '"' if ($inf[5] =~ /[^a-z0-9_]/);
