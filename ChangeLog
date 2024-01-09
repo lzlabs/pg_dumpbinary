@@ -1,3 +1,22 @@
+2024-01-09 - version 2.14
+
+This release adds two new options and fixes some bugs reported by users
+since last release.
+
+  - Add new option --with-child, when -t or -T option are used, include
+    or exclude child and partition tables. pg_dump will be used instead
+    with options --table-and-children or --exclude-table-and-children.
+    Require PostgreSQL >= 16.
+  - Add -V, --verbose option that lists tables included in the dump.
+    Thanks to Mike Tefft for the feature request.
+  - Add new command line option to pg_dumpbinary: -A, --attach SNAPSHOT
+    to be able to attach pg_dumpbinary to an existing snapshot instead
+    of creating a dedicated one. Thanks to Thomas Reiss for the feature
+    request.
+  - Fix case where sequences name have spaces. Thanks to Ki Woohyun for
+    the report.
+  - Fix regression tests original dump.
+
 2023-10-04 - version 2.13
 
 This release fix a restore issue with dropped columns.
