@@ -164,7 +164,7 @@ CREATE SEQUENCE "SEQNSP".test_seq1_id_seq
     CACHE 1;
 
 
-ALTER TABLE "SEQNSP".test_seq1_id_seq OWNER TO gilles;
+ALTER SEQUENCE "SEQNSP".test_seq1_id_seq OWNER TO gilles;
 
 --
 -- Name: test_seq1_id_seq; Type: SEQUENCE OWNED BY; Schema: SEQNSP; Owner: gilles
