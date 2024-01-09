@@ -46,6 +46,7 @@ my $COMPRESS_LEVEL = 6;
 my $SNAPSHOT_INFO_FILE = '/tmp/.snapshot_info';
 my $ATTACH_SNAPSHOT = '';
 my $VERBOSE   = 0;
+my $WITH_CHILD = 0;
 
 my $interrupt    = 0;
 my $child_count  = 0;
@@ -158,6 +159,7 @@ GetOptions(
 	"V|verbose!"         => \$VERBOSE,
 	"help!"              => \$HELP,
 	"load-via-partition-root!" => \$PARTITION_ROOT,
+	"with-child!"        => \$WITH_CHILD,
 );
 
 if ($VER)
@@ -546,6 +548,10 @@ options:
   --load-via-partition-root    dump data through partitioned table only, make
                                the COPY statements target the root of the
 			       partitioning hierarchy rather than the partition.
+  --with-child                 when -t or -T option are used, include or exclude
+                               child and partition tables. pg_dump will be used
+			       instead with options --table-and-children or
+			       --exclude-table-and-children (PostgreSQL >= 16).
 
 $msg
 };
@@ -680,7 +686,11 @@ sub set_filter_option
 	{
 		foreach my $s (@INC_TABLE)
 		{
-			$PG_FILTER .= " -t '$s'";
+			if ($WITH_CHILD) {
+				$PG_FILTER .= " --table-and-children '$s'";
+			} else {
+				$PG_FILTER .= " -t '$s'";
+			}
 		}
 	}
 
@@ -688,7 +698,11 @@ sub set_filter_option
 	{
 		foreach my $s (@EXC_TABLE)
 		{
-			$PG_FILTER .= " -T '$s'";
+			if ($WITH_CHILD) {
+				$PG_FILTER .= " --exclude-table-and-children '$s'";
+			} else {
+				$PG_FILTER .= " -T '$s'";
+			}
 		}
 	}
 }

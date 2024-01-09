@@ -36,6 +36,10 @@ options:
   --load-via-partition-root    dump data through partitioned table only, make
                                the COPY statements target the root of the
 			       partitioning hierarchy rather than the partition
+  --with-child                 when -t or -T option are used, include or exclude
+                               child and partition tables. pg_dump will be used
+			       instead with options --table-and-children or
+			       --exclude-table-and-children (PostgreSQL >= 16).
 
 =head1 DESCRIPTION
 
