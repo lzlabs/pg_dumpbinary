@@ -195,5 +195,5 @@ Gilles Darold.
 
 pg_dumpbinary is free software distributed under the PostgreSQL Licence.
 
-Copyright (c) 2019-2023 LzLabs, GmbH
+Copyright (c) 2019-2024 LzLabs, GmbH
 
