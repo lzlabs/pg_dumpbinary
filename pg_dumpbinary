@@ -321,6 +321,7 @@ printf "Dumping pre data section at %s\n", get_current_date();
 `$PGDUMP --snapshot='$snapshot' $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=pre-data -f "$OUTDIR/pre-data.dmp"`;
 if ($?)
 {
+	unlink("$SNAPSHOT_INFO_FILE") if (-e "$SNAPSHOT_INFO_FILE");
 	$dbh->disconnect();
 	die "ERROR: pg_dump error to dump pre-data section.\n";
 }
@@ -329,6 +330,7 @@ if ($?)
 my @ext_tables = `$PSQL $PG_OPT -d $DBNAME -AtXc "SET search_path TO ''; SELECT extname, unnest(extconfig)::regclass FROM pg_catalog.pg_extension WHERE extconfig IS NOT NULL"`;
 if ($?)
 {
+	unlink("$SNAPSHOT_INFO_FILE") if (-e "$SNAPSHOT_INFO_FILE");
 	$dbh->disconnect();
 	die "ERROR: can not get extensions tables that must be dumped.\n";
 }
@@ -478,6 +480,7 @@ if (!$interrupt)
 	`$PGDUMP --snapshot="$snapshot" $PG_OPT $PG_FILTER -d $DBNAME -Fc --section=post-data -f "$OUTDIR/post-data.dmp"`;
 	if ($?)
 	{
+		unlink("$SNAPSHOT_INFO_FILE") if (-e "$SNAPSHOT_INFO_FILE");
 		$dbh->disconnect();
 		die "ERROR: pg_dump error for post-data section.\n";
 	}
@@ -486,7 +489,7 @@ if (!$interrupt)
 # Remove the snapshot information file to terminate the last child process
 unlink("$SNAPSHOT_INFO_FILE");
 
-# Then wait for all child processes to localdie
+# Then wait for all child processes to die
 while (scalar keys %RUNNING_PIDS > 0)
 {
         my $kid = waitpid(-1, WNOHANG);
