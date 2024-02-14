@@ -18,7 +18,7 @@ use Time::HiRes qw/usleep/;
 use File::Spec qw/ tmpdir /;
 use File::Temp qw/ tempfile /;
 
-my $VERSION = '2.14';
+my $VERSION = '2.15';
 my $PROGRAM = 'pg_restorebinary';
 
 my $DBNAME = '';

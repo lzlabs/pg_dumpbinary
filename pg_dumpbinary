@@ -20,7 +20,7 @@ use DBI;
 use DBD::Pg;
 use POSIX qw(strftime);
 
-my $VERSION = '2.14';
+my $VERSION = '2.15';
 my $PROGRAM = 'pg_dumpbinary';
 
 my $DBNAME = '';

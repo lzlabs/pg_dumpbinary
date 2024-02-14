@@ -1,3 +1,15 @@
+2024-02-14 - version 2.15
+
+This release adds a new option and fixes a bug reported by users since
+last release.
+
+  - Add -w, --where command line option to pg_dumpbinary to apply a filter
+    to the data dumped. The filter will be used in a WHERE clause for data
+    export, this clause will be applied to all tables dumped. Thanks to Mike
+    Tefft for the feature request.
+  - Fix error "DBD::Pg::db do failed: server closed the connection unexpectedly"
+    when the attempt to dump the pre-data section fail.
+
 2024-01-09 - version 2.14
 
 This release adds two new options and fixes some bugs reported by users
