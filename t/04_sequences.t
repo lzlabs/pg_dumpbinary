@@ -26,5 +26,4 @@ ok( $? == 0 && $ret == 5, "Look for next value for a sequence to verify that it 
 
 # Clean all
 `rm -rf t/test_bin_dump`;
-`dropdb test_bin_dump_orig >/dev/null 2>&1`;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;

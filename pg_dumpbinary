@@ -31,6 +31,7 @@ my @INC_SCHEMA = ();
 my @EXC_SCHEMA = ();
 my @INC_TABLE = ();
 my @EXC_TABLE = ();
+my $WHERE = '';
 
 my $TMP_DIR   = File::Spec->tmpdir() || '/tmp';
 my $PGDUMP    = 'pg_dump';
@@ -157,6 +158,7 @@ GetOptions(
 	"u|user=s"           => \$DBUSER,
 	"v|version!"         => \$VER,
 	"V|verbose!"         => \$VERBOSE,
+	"w|where=s"          => \$WHERE,
 	"help!"              => \$HELP,
 	"load-via-partition-root!" => \$PARTITION_ROOT,
 	"with-child!"        => \$WITH_CHILD,
@@ -178,6 +180,9 @@ if (!$DBNAME)
 {
 	&usage("ERROR: you must specify a database to dump, see -d option\n");
 }
+
+# Set the WHERE clause if we have a filter
+$WHERE = ' WHERE ' . $WHERE if ($WHERE);
 
 # Set pg_dump/psql option
 if ($DBHOST)
@@ -387,21 +392,12 @@ foreach my $s (sort keys %tbl_list)
 		{
 			push(@{ $distributed_table{$proc} }, qq{\\o |gzip -$COMPRESS_LEVEL -c - > "$OUTDIR/data-$file.bin.gz"});
 		}
-		# Partitioned table dumped through partition root only must use the COPY (SELECT ...) TO syntax
-		if (exists $partitions{$s}{$tbl_list{$s}[$i]} && $PARTITION_ROOT)
-		{
-			push(@{ $distributed_table{$proc} }, qq{COPY (SELECT * FROM "$s"."$tbl_list{$s}[$i]" $ext_cond{$s}{$tbl_list{$s}[$i]}) TO stdout WITH (FORMAT binary);});
+		# Use the COPY (SELECT ...) TO syntax to be able to select the partition to dump and to apply a filter
+		my $alias = '';
+		if (exists $ext_cond{$s}{$tbl_list{$s}[$i]} && $ext_cond{$s}{$tbl_list{$s}[$i]} eq '') {
+			$alias = $ext_cond{$s}{$tbl_list{$s}[$i]};
 		}
-		# If the table is not a foreign table dump with standard COPY syntax
-		elsif (!exists $ext_cond{$s}{$tbl_list{$s}[$i]} || $ext_cond{$s}{$tbl_list{$s}[$i]} eq '')
-		{
-			push(@{ $distributed_table{$proc} }, qq{COPY "$s"."$tbl_list{$s}[$i]" TO stdout WITH (FORMAT binary);});
-		}
-		# For foreign table use the form COPY (SELECT ...) TO
-		else
-		{
-			push(@{ $distributed_table{$proc} }, qq{COPY (SELECT * FROM "$s"."$tbl_list{$s}[$i]" $ext_cond{$s}{$tbl_list{$s}[$i]}) TO stdout WITH (FORMAT binary);});
-		}
+		push(@{ $distributed_table{$proc} }, qq{COPY (SELECT * FROM "$s"."$tbl_list{$s}[$i]" $alias$WHERE) TO stdout WITH (FORMAT binary);});
 		$proc++;
 		$proc = 1 if ($proc > $JOBS);
 	}
@@ -547,6 +543,7 @@ options:
   -u, --user NAME              connect as specified database user.
   -v, --version                show program version.
   -V, --verbose                display the list of tables parts of the dump.
+  -w, --where                  add a filter in a WHERE clause to data export.
   --help                       show usage.
   --load-via-partition-root    dump data through partitioned table only, make
                                the COPY statements target the root of the
