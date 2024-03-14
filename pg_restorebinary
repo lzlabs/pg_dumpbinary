@@ -281,10 +281,10 @@ foreach my $s (sort keys %tbl_list)
 {
 	foreach my $t (sort keys %{ $tbl_list{$s} })
 	{
-		my $sch = quotemeta($s);
-		my $tbl = quotemeta($t);
-		$sch =~ s/\\"//g;
-		$tbl =~ s/\\"//g;
+		my $sch = $s;
+		my $tbl = $t;
+		$sch =~ s/"//g;
+		$tbl =~ s/"//g;
 		next if (!-e "$INDIR/data-$sch.$tbl.bin.gz" && !-e "$INDIR/data-$sch.$tbl.bin");
 
 		push(@{ $distributed_table{$proc} }, "\\o");
@@ -301,9 +301,16 @@ foreach my $s (sort keys %tbl_list)
 		{
 			push(@{ $distributed_table{$proc} }, qq{TRUNCATE $s.$t;});
 		}
-		if (-e "$INDIR/data-$sch.$tbl.bin.gz") {
+		if (-e "$INDIR/data-$sch.$tbl.bin.gz")
+		{
+			$sch =  quotemeta($sch);
+			$tbl =  quotemeta($tbl);
 			push(@{ $distributed_table{$proc} }, qq{\\copy $s.$t $target_list FROM PROGRAM 'gunzip -c "$INDIR/data-$sch.$tbl.bin.gz"' WITH (FORMAT binary);});
-		} elsif (-e "$INDIR/data-$sch.$tbl.bin") {
+		}
+		elsif (-e "$INDIR/data-$sch.$tbl.bin")
+		{
+			$sch =  quotemeta($sch);
+			$tbl =  quotemeta($tbl);
 			push(@{ $distributed_table{$proc} }, qq{\\copy $s.$t $target_list FROM '$INDIR/data-$sch.$tbl.bin' WITH (FORMAT binary);});
 		}
 		if ($DISABLE_TRIGGERS)
