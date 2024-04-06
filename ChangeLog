@@ -1,3 +1,8 @@
+2024-04-06 - version 2.16
+
+This release fixes data restoration for tables where schema or table names
+contain the dollar sign ($).
+
 2024-02-14 - version 2.15
 
 This release adds a new option and fixes a bug reported by users since
