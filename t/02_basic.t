@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use Test::Simple tests => 13;
+use Test::Simple tests => 14;
 
 my $ret = ``;
 `dropdb test_bin_dump_orig >/dev/null 2>&1`;
@@ -35,6 +35,14 @@ ok( $? == 0 && `ls t/test_bin_dump/*.gz 2>/dev/null | wc -l` == 0, "Dump with no
 $ret = `perl pg_restorebinary -a -d test_bin_dump_dest --truncate t/test_bin_dump`;
 ok( $? == 0, "Restore uncompressed data into test_bin_dump_dest");
 
+my $createdb = qq{CREATE DATABASE test_bin_dump_orig WITH TEMPLATE = template0 ENCODING = 'UTF8' LOCALE_PROVIDER = libc LOCALE = 'fr_FR.UTF-8';
+ALTER DATABASE test_bin_dump_orig OWNER TO gilles;
+};
+$ret = `perl pg_restorebinary --dump-create t/test_bin_dump`;
+ok( $? == 0 && $ret eq $createdb, "Dump create database statements: $ret");
+
+
+`cp -r t/test_bin_dump t/test_bin_dump2`;
 `rm -rf t/test_bin_dump`;
 `rm t/sql/db_test_new.sql`;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;

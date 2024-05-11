@@ -43,6 +43,7 @@ my $TRUNCATE  = 0;
 my @EXCLUDED_EXTENSION = ();
 my $IF_NOT_EXISTS_SCHEMA = 0;
 my $OUTFILE   = '';
+my $DUMP_CREATE  = 0;
 
 my $DISABLE_TRIGGERS = 0;
 
@@ -145,6 +146,7 @@ GetOptions(
 	"disable-triggers!"  => \$DISABLE_TRIGGERS,
 	"truncate!"          => \$TRUNCATE,
 	"schema-exists!"     => \$IF_NOT_EXISTS_SCHEMA,
+	"dump-create!"       => \$DUMP_CREATE,
 );
 
 if ($VER)
@@ -155,7 +157,7 @@ if ($VER)
 
 &usage() if ($HELP);
 
-if (!$DBNAME && !$INFO && !$OUTFILE)
+if (!$DBNAME && !$INFO && !$OUTFILE && !$DUMP_CREATE)
 {
 	&usage("ERROR: you must specify a database to restore, see -d option\n");
 }
@@ -218,6 +220,23 @@ if ($INFO)
 	print ";     Number of tables to retore: ", scalar @list, "\n";
 	exit 0;
 }
+
+# Show DATABASE related DDL statements
+if ($DUMP_CREATE)
+{
+	`$PGRESTORE -C -l $INDIR/pre-data.dmp | grep "DATABASE" > /tmp/createdb_pg_dumpbinary-$$.lst`;
+	if ($?) {
+		die "ERROR: pg_restore error to obtain dump information.\n";
+	}
+	my @info = `$PGRESTORE -C $INDIR/pre-data.dmp -f - -L /tmp/createdb_pg_dumpbinary-$$.lst | grep -Ev "^(SET|\-\-|SELECT|.connect|\$)"`;
+	chomp(@info);
+	foreach my $l (@info) {
+		print "$l\n";
+	}
+
+	exit 0;
+}
+
 
 # Restoring database pre-data section without attaching partition
 # it will be done at import of post data section.
@@ -443,6 +462,7 @@ options:
   --disable-triggers           disable triggers during data restore
   --truncate                   truncate the table before importing the data
   --schema-exists              add an IF NOT EXISTS clause to CREATE SCHEMA
+  --dump-create                print the database creation statements to stdout
 
 $msg
 };
