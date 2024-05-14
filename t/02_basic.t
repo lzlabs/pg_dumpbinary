@@ -1,9 +1,8 @@
 #!/usr/bin/perl
-use Test::Simple tests => 14;
+use Test::Simple tests => 16;
 
-my $ret = ``;
 `dropdb test_bin_dump_orig >/dev/null 2>&1`;
-$ret = `createdb test_bin_dump_orig`;
+my $ret = `createdb test_bin_dump_orig`;
 ok( $? == 0, "Source test database created");
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
 $ret = `createdb test_bin_dump_dest`;
@@ -39,10 +38,14 @@ my $createdb = qq{CREATE DATABASE test_bin_dump_orig WITH TEMPLATE = template0 E
 ALTER DATABASE test_bin_dump_orig OWNER TO gilles;
 };
 $ret = `perl pg_restorebinary --dump-create t/test_bin_dump`;
-ok( $? == 0 && $ret eq $createdb, "Dump create database statements: $ret");
+ok( $? == 0 && $ret eq $createdb, "Dump create database statements");
 
+$ret = `perl pg_restorebinary -d test_bin_dump_orig --create -f outfile.sql t/test_bin_dump`;
+ok( $? == 0, "Dump with create database statements: $ret");
+my @diff = `diff outfile.sql t/sql/createdb_output.sql | grep -v "^(5,6c5,6|[<>] -- Dumped|---)"`;
+ok( $#diff == -1, "Diff dump with create database: @diff");
 
-`cp -r t/test_bin_dump t/test_bin_dump2`;
 `rm -rf t/test_bin_dump`;
 `rm t/sql/db_test_new.sql`;
 `dropdb test_bin_dump_dest >/dev/null 2>&1`;
+`rm -f outfile.sql`;

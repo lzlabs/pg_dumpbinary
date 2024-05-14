@@ -7,33 +7,36 @@ pg_restorebinary - Restore a dump generated with pg_dumpbinary.
 Program used to restore a PostgreSQL binary dump done with pg_dumpbinary.
 It can not be used to restore other PostgreSQL dump.
 
-usage: pg_restorebinary [options] -d dbname backup_dir
+usage: pg_restorebinary [options] [-d dbname | -f outfile.sql] backup_dir
 
   backup_dir   directory where backup files to restore will be read.
                It must be a directory created by pg_dumpbinary.
 options:
 
-  -a, --data-only              restore only the data, no schema
-  -d, --database DBNAME        database to restore, it must exists
+  -a, --data-only              restore only the data, no schema.
+  -C, --create                 create the database before restoring into it.
+  -d, --database DBNAME        database to restore, it must exists.
   -E, --exclude-ext EXTNAME    name of an extension to not restore, it can
                                be used multiple time.
   -f, --file FILENAME          specify output file for generated script. No
                                restore is performed, the resulting DDL and
-                               commands are written to the file.
-  -h, --host HOSTNAME          database server host or socket directory
-  -i, --info                   print information about the dump and exit
-  -j, --job NUM                use this many parallel jobs to restore
-  -n, --schema SCHEMA          restore the named schema(s) only
-  -N, --exclude-schema SCHEMA  do NOT restore the named schema(s)
-  -p, --port PORT              database server port number, default: 5432
-  -t, --table TABLE            restore named relation
-  -T, --exclude-table TABLE    do NOT restore the named table
-  -u, --user NAME              connect as specified database user
-  -v, --version                show program version
-  --help                       show usage
-  --disable-triggers           disable triggers during data restore
-  --truncate                   truncate the table before importing the data
-  --schema-exists              add an IF NOT EXISTS clause to CREATE SCHEMA
+			       commands are written to the file.
+  -h, --host HOSTNAME          database server host or socket directory.
+  -i, --info                   print information about the dump and exit.
+  -j, --job NUM                use this many parallel jobs to restore.
+  -n, --schema SCHEMA          restore the named schema(s) only.
+  -N, --exclude-schema SCHEMA  do NOT restore the named schema(s).
+  -p, --port PORT              database server port number, default: 5432.
+  -t, --table TABLE            restore named relation.
+  -T, --exclude-table TABLE    do NOT restore the named table.
+  -u, --user NAME              connect as specified database user.
+  -v, --version                show program version.
+  --help                       show usage.
+  --disable-triggers           disable triggers during data restore.
+  --truncate                   truncate the table before importing the data.
+  --schema-exists              add an IF NOT EXISTS clause to CREATE SCHEMA.
+  --dump-create                print to stdout the CREATE and ALTER DATABASE
+                               statements.
 
 =head1 DESCRIPTION
 
