@@ -234,6 +234,23 @@ CREATE TABLE public."T1" (
 ALTER TABLE public."T1" OWNER TO gilles;
 
 --
+-- Name: dump_18; Type: TABLE; Schema: public; Owner: gilles
+--
+
+CREATE TABLE public.dump_18 (
+    id integer,
+    "DocumentId" text,
+    "Completed" boolean GENERATED ALWAYS AS (
+CASE
+    WHEN ("DocumentId" IS NULL) THEN false
+    ELSE true
+END) STORED
+);
+
+
+ALTER TABLE public.dump_18 OWNER TO gilles;
+
+--
 -- Name: t2; Type: TABLE; Schema: public; Owner: gilles
 --
 
@@ -300,6 +317,9 @@ ALTER TABLE ONLY "SEQNSP".test_seq1 ALTER COLUMN id SET DEFAULT nextval('"SEQNSP
 \o
 \echo Restoring data to table public."T1"
 \copy public."T1"  FROM 't/test_bin_dump/data-public.T1.bin' WITH (FORMAT binary);
+\o
+\echo Restoring data to table public.dump_18
+\copy public.dump_18 (id,"DocumentId") FROM 't/test_bin_dump/data-public.dump_18.bin' WITH (FORMAT binary);
 \o
 \echo Restoring data to table public.t2
 \copy public.t2 (id) FROM 't/test_bin_dump/data-public.t2.bin' WITH (FORMAT binary);

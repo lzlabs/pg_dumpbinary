@@ -375,11 +375,15 @@ foreach my $s (sort keys %tbl_list)
 		# exclude all partition from the export when data are exported from the partition root
 		next if ($PARTITION_ROOT && exists $all_partition_names{$s}{$tbl_list{$s}[$i]});
 		my $file = quotemeta($s) . '.' . quotemeta($tbl_list{$s}[$i]);
-		# write target list to file
-		`$PSQL $PG_OPT -d $DBNAME -AtXc "SELECT quote_ident(attname) FROM pg_attribute a JOIN pg_class c ON (a.attrelid = c.oid) JOIN pg_namespace n ON (c.relnamespace = n.oid) WHERE c.relname = '$tbl_list{$s}[$i]' AND n.nspname = '$s' AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum;" > "$OUTDIR/meta-$file.txt"`;
+		# write target list to file (exclude generated columns)
+		`$PSQL $PG_OPT -d $DBNAME -AtXc "SELECT quote_ident(attname) FROM pg_attribute a JOIN pg_class c ON (a.attrelid = c.oid) JOIN pg_namespace n ON (c.relnamespace = n.oid) WHERE c.relname = '$tbl_list{$s}[$i]' AND n.nspname = '$s' AND a.attnum > 0 AND NOT a.attisdropped AND attgenerated = '' ORDER BY a.attnum;" > "$OUTDIR/meta-$file.txt"`;
 		if ($?) {
 			die "ERROR: psql fail to write target list.\n";
 		}
+		my @target_list = `cat "$OUTDIR/meta-$file.txt"`;
+		chomp(@target_list);
+		my $targets = join(',', @target_list);
+
 		push(@{ $distributed_table{$proc} }, "\\o");
 		push(@{ $distributed_table{$proc} }, "\\echo Dumping data from table $s.$tbl_list{$s}[$i]");
 		printf "Adding to export list table $s.$tbl_list{$s}[$i]\n" if ($VERBOSE);
@@ -397,7 +401,7 @@ foreach my $s (sort keys %tbl_list)
 		if (exists $ext_cond{$s}{$tbl_list{$s}[$i]} && $ext_cond{$s}{$tbl_list{$s}[$i]} eq '') {
 			$alias = $ext_cond{$s}{$tbl_list{$s}[$i]};
 		}
-		push(@{ $distributed_table{$proc} }, qq{COPY (SELECT * FROM "$s"."$tbl_list{$s}[$i]" $alias$WHERE) TO stdout WITH (FORMAT binary);});
+		push(@{ $distributed_table{$proc} }, qq{COPY (SELECT $targets FROM "$s"."$tbl_list{$s}[$i]" $alias$WHERE) TO stdout WITH (FORMAT binary);});
 		$proc++;
 		$proc = 1 if ($proc > $JOBS);
 	}

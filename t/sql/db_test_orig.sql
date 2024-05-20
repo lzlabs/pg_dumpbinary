@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 14.2 (Ubuntu 14.2-1.pgdg20.04+1)
--- Dumped by pg_dump version 14.2 (Ubuntu 14.2-1.pgdg20.04+1)
+-- Dumped from database version 16.3 (Ubuntu 16.3-1.pgdg22.04+1)
+-- Dumped by pg_dump version 16.3 (Ubuntu 16.3-1.pgdg22.04+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -210,6 +210,23 @@ CREATE TABLE public."T1" (
 
 
 ALTER TABLE public."T1" OWNER TO gilles;
+
+--
+-- Name: dump_18; Type: TABLE; Schema: public; Owner: gilles
+--
+
+CREATE TABLE public.dump_18 (
+    id integer,
+    "DocumentId" text,
+    "Completed" boolean GENERATED ALWAYS AS (
+CASE
+    WHEN ("DocumentId" IS NULL) THEN false
+    ELSE true
+END) STORED
+);
+
+
+ALTER TABLE public.dump_18 OWNER TO gilles;
 
 --
 -- Name: t2; Type: TABLE; Schema: public; Owner: gilles
@@ -541,6 +558,16 @@ COPY public."T1" ("COL1", "COL2") FROM stdin;
 98	blb 98
 99	blb 99
 100	blb 100
+\.
+
+
+--
+-- Data for Name: dump_18; Type: TABLE DATA; Schema: public; Owner: gilles
+--
+
+COPY public.dump_18 (id, "DocumentId") FROM stdin;
+1	hello
+2	\N
 \.
 
 
