@@ -34,6 +34,15 @@ CREATE SCHEMA "SEQNSP";
 
 ALTER SCHEMA "SEQNSP" OWNER TO gilles;
 
+--
+-- Name: ordsch; Type: SCHEMA; Schema: -; Owner: gilles
+--
+
+CREATE SCHEMA ordsch;
+
+
+ALTER SCHEMA ordsch OWNER TO gilles;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -198,6 +207,32 @@ ALTER TABLE "SEQNSP".test_seq2 ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY 
     CACHE 1
 );
 
+
+--
+-- Name: order_system_pk_seq; Type: SEQUENCE; Schema: ordsch; Owner: gilles
+--
+
+CREATE SEQUENCE ordsch.order_system_pk_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE ordsch.order_system_pk_seq OWNER TO gilles;
+
+--
+-- Name: order; Type: TABLE; Schema: ordsch; Owner: gilles
+--
+
+CREATE TABLE ordsch."order" (
+    system_pk integer DEFAULT nextval('ordsch.order_system_pk_seq'::regclass) NOT NULL,
+    lbl character varying(255)
+);
+
+
+ALTER TABLE ordsch."order" OWNER TO gilles;
 
 --
 -- Name: T1; Type: TABLE; Schema: public; Owner: gilles
@@ -454,6 +489,15 @@ COPY "SEQNSP".test_seq2 (id, lbl) FROM stdin;
 
 
 --
+-- Data for Name: order; Type: TABLE DATA; Schema: ordsch; Owner: gilles
+--
+
+COPY ordsch."order" (system_pk, lbl) FROM stdin;
+1	hello
+\.
+
+
+--
 -- Data for Name: T1; Type: TABLE DATA; Schema: public; Owner: gilles
 --
 
@@ -601,6 +645,21 @@ SELECT pg_catalog.setval('"SEQNSP".test_seq1_id_seq', 5, true);
 --
 
 SELECT pg_catalog.setval('"SEQNSP".test_seq2_id_seq', 5, true);
+
+
+--
+-- Name: order_system_pk_seq; Type: SEQUENCE SET; Schema: ordsch; Owner: gilles
+--
+
+SELECT pg_catalog.setval('ordsch.order_system_pk_seq', 1, true);
+
+
+--
+-- Name: order order_pk; Type: CONSTRAINT; Schema: ordsch; Owner: gilles
+--
+
+ALTER TABLE ONLY ordsch."order"
+    ADD CONSTRAINT order_pk PRIMARY KEY (system_pk);
 
 
 --

@@ -56,6 +56,15 @@ CREATE SCHEMA "SEQNSP";
 
 ALTER SCHEMA "SEQNSP" OWNER TO gilles;
 
+--
+-- Name: ordsch; Type: SCHEMA; Schema: -; Owner: gilles
+--
+
+CREATE SCHEMA ordsch;
+
+
+ALTER SCHEMA ordsch OWNER TO gilles;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -222,6 +231,32 @@ ALTER TABLE "SEQNSP".test_seq2 ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY 
 
 
 --
+-- Name: order_system_pk_seq; Type: SEQUENCE; Schema: ordsch; Owner: gilles
+--
+
+CREATE SEQUENCE ordsch.order_system_pk_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE ordsch.order_system_pk_seq OWNER TO gilles;
+
+--
+-- Name: order; Type: TABLE; Schema: ordsch; Owner: gilles
+--
+
+CREATE TABLE ordsch."order" (
+    system_pk integer DEFAULT nextval('ordsch.order_system_pk_seq'::regclass) NOT NULL,
+    lbl character varying(255)
+);
+
+
+ALTER TABLE ordsch."order" OWNER TO gilles;
+
+--
 -- Name: T1; Type: TABLE; Schema: public; Owner: gilles
 --
 
@@ -315,6 +350,9 @@ ALTER TABLE ONLY "SEQNSP".test_seq1 ALTER COLUMN id SET DEFAULT nextval('"SEQNSP
 \echo Restoring data to table "SEQNSP".test_seq2
 \copy "SEQNSP".test_seq2  FROM 't/test_bin_dump/data-SEQNSP.test_seq2.bin' WITH (FORMAT binary);
 \o
+\echo Restoring data to table ordsch."order"
+\copy ordsch."order"  FROM 't/test_bin_dump/data-ordsch.order.bin' WITH (FORMAT binary);
+\o
 \echo Restoring data to table public."T1"
 \copy public."T1"  FROM 't/test_bin_dump/data-public.T1.bin' WITH (FORMAT binary);
 \o
@@ -325,6 +363,7 @@ ALTER TABLE ONLY "SEQNSP".test_seq1 ALTER COLUMN id SET DEFAULT nextval('"SEQNSP
 \copy public.t2 (id) FROM 't/test_bin_dump/data-public.t2.bin' WITH (FORMAT binary);
 SELECT pg_catalog.setval('"SEQNSP".test_seq1_id_seq', 5, true);
 SELECT pg_catalog.setval('"SEQNSP".test_seq2_id_seq', 5, true);
+SELECT pg_catalog.setval('ordsch.order_system_pk_seq', 1, true);
 --
 -- PostgreSQL database dump
 --
@@ -344,6 +383,14 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 SET default_tablespace = '';
+
+--
+-- Name: order order_pk; Type: CONSTRAINT; Schema: ordsch; Owner: gilles
+--
+
+ALTER TABLE ONLY ordsch."order"
+    ADD CONSTRAINT order_pk PRIMARY KEY (system_pk);
+
 
 --
 -- Name: ixsales; Type: INDEX; Schema: BTEST; Owner: gilles

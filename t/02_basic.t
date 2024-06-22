@@ -42,6 +42,7 @@ ok( $? == 0 && $ret eq $createdb, "Dump create database statements");
 
 $ret = `perl pg_restorebinary -d test_bin_dump_orig --create -f outfile.sql t/test_bin_dump`;
 ok( $? == 0, "Dump with create database statements: $ret");
+`cp outfile.sql /tmp/`;
 my @diff = `diff outfile.sql t/sql/createdb_output.sql | grep -v "^(5,6c5,6|[<>] -- Dumped|---)"`;
 ok( $#diff == -1, "Diff dump with create database: @diff");
 
