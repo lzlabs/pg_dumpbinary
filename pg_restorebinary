@@ -548,6 +548,9 @@ sub get_table_list
 			my $tb = $inf[1];
 			$tb =~ s/"//g;
 			next if exists ($tb_lst{$inf[0]}{$inf[1]});
+			next if exists ($tb_lst{$inf[0]}{"\"$inf[1]\""});
+			next if exists ($tb_lst{"\"$inf[0]\""}{$inf[1]});
+			next if exists ($tb_lst{"\"$inf[0]\""}{"\"$inf[1]\""});
 
 			# Exclude / include some schemas only?
 			next if ($#INC_SCHEMA >= 0 and !grep(/^["]*\Q$sch\E["]*$/, @INC_SCHEMA));
@@ -575,6 +578,9 @@ sub get_table_list
 			$inf[0] = "\"$inf[0]\"" if ($inf[0] =~ /[^a-z0-9_\$]/ || $inf[0] =~ /^\d/);
 			$inf[1] = "\"$inf[1]\"" if ($inf[1] =~ /[^a-z0-9_\$]/ || $inf[1] =~ /^\d/);
 			next if exists ($tb_lst{$inf[0]}{$inf[1]});
+			next if exists ($tb_lst{$inf[0]}{"\"$inf[1]\""});
+			next if exists ($tb_lst{"\"$inf[0]\""}{$inf[1]});
+			next if exists ($tb_lst{"\"$inf[0]\""}{"\"$inf[1]\""});
 			# Exclude / include some schemas only?
 			next if ($#INC_SCHEMA >= 0 and !grep(/^["]*\Q$sch\E["]*$/, @INC_SCHEMA));
 			next if ($#EXC_SCHEMA >= 0 and grep(/^["]*\Q$sch\E["]*$/, @EXC_SCHEMA));
