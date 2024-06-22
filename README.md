@@ -71,7 +71,7 @@ commands pg_dump, pg_restore and psql must be available through the PATH
 environment variable. Data are compressed using gzip.
 
 THe Perl module Date::Time can be installed using `sudo apt install libdatetime-perl`
-or `sudo yum install perl-Date-Time`. You can also install it
+or `sudo yum install perl-DateTime`. You can also install it
 from sources downloaded from [CPAN](https://metacpan.org/pod/Date::Time).
 
 Perl module DBD::Pg can be installed using `sudo apt install libdbd-pg-perl`
