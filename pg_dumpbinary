@@ -218,7 +218,7 @@ printf "Database $DBNAME dump created at %s\n", get_current_date();
 my $dbpg_opt = '';
 $dbpg_opt .= ";port=$DBPORT" if ($DBPORT);
 $dbpg_opt .= ";host=$DBHOST" if ($DBHOST);
-$dbh = DBI->connect("dbi:Pg:dbname=$DBNAME$dbpg_opt", $DBUSER, '', {AutoCommit => 1, InactiveDestroy => 1});
+$dbh = DBI->connect("dbi:Pg:application_name=pg_dumpbinary;dbname=$DBNAME$dbpg_opt", $DBUSER, '', {AutoCommit => 1, InactiveDestroy => 1});
 if (not defined $dbh)
 {
 	die "FATAL: can not connect to database $DBNAME\n";

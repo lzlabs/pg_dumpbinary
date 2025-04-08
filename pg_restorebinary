@@ -56,6 +56,8 @@ my %RUNNING_PIDS= ();
 
 my $parent_pid = $$;
 
+$ENV{PGAPPNAME} = 'pg_restorebinary';
+
 ####
 # Method used to fork as many child as wanted,
 # must be declared at top if the program.
