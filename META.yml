@@ -1,5 +1,5 @@
 name:         pg_dumpbinary
-version:      2.18
+version:      2.19
 version_from: pg_dumpbinary
 installdirs:  site
 recommends:

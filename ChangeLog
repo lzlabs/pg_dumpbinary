@@ -1,3 +1,14 @@
+2025-04-08 - version 2.19
+
+This is a maintenance release that fixes a major bug when dumping data
+from tables with the dollar sign.
+
+  - Set application_name to program name when connecting to PostgreSQL.
+  - Fix missing data when dumping a table with dollar sign in its name
+    or schema name.
+  - Fix regression test when different PG versions are used.
+  - Update copyright year.
+
 2024-06-22 - version 2.18
 
 This is a maintenance release that fixes bugs reported by users since
