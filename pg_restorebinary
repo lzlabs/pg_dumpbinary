@@ -163,12 +163,12 @@ if ($VER)
 
 if (!$DBNAME && !$INFO && !$OUTFILE && !$DUMP_CREATE)
 {
-	&usage("ERROR: you must specify a database to restore, see -d option\n");
+	&usage("ERROR: you must specify a database to restore, see -d option\n", 1);
 }
 
 if ($DATAONLY && ($DUMP_CREATE || $CREATEDB))
 {
-	&usage("ERROR: you the -a data only option is not compatible with -C and --dump-create options\n");
+	&usage("ERROR: you the -a data only option is not compatible with -C and --dump-create options\n", 1);
 }
 
 # Set pg_dump/psql option
@@ -194,7 +194,7 @@ my $INDIR = $ARGV[0] || 0;
 # Check input directory
 if (!-d $INDIR)
 {
-	&usage("ERROR: you must specify a dump directory as input.\n");
+	&usage("ERROR: you must specify a dump directory as input.\n", 1);
 }
 else
 {
@@ -440,7 +440,9 @@ if (!$DATAONLY)
 ####
 sub usage
 {
-	my $msg = shift();
+	my ($msg, $exit_code) = @_;
+
+	$exit_code ||= 0;
 
 	print qq{
 Program used to restore a PostgreSQL binary dump done with pg_dumpbinary.
@@ -479,7 +481,7 @@ options:
 
 $msg
 };
-	exit 0;
+	exit $exit_code;
 }
 
 ####
