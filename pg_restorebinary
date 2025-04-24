@@ -45,6 +45,7 @@ my $IF_NOT_EXISTS_SCHEMA = 0;
 my $OUTFILE     = '';
 my $DUMP_CREATE = 0;
 my $CREATEDB    = 0;
+my $VERBOSE     = 0;
 
 my $DISABLE_TRIGGERS = 0;
 
@@ -146,6 +147,7 @@ GetOptions(
 	"T|exclude-table=s"  => \@EXC_TABLE,
 	"u|user=s"           => \$DBUSER,
 	"v|version!"         => \$VER,
+	"V|verbose!"         => \$VERBOSE,
 	"help!"              => \$HELP,
 	"disable-triggers!"  => \$DISABLE_TRIGGERS,
 	"truncate!"          => \$TRUNCATE,
@@ -213,6 +215,7 @@ chomp($pgrestore_version);
 # Look at backup information
 if ($INFO)
 {
+	print "Look at backup information\n" if ($VERBOSE);
 	my @info = `$PGRESTORE -l $INDIR/pre-data.dmp | grep "^;"`;
 	if ($?) {
 		die "ERROR: pg_restore error to obtain dump information.\n";
@@ -233,6 +236,7 @@ if ($INFO)
 # Show DATABASE related DDL statements
 if ($DUMP_CREATE)
 {
+	print "Show DATABASE related DDL statements\n" if ($VERBOSE);
 	`$PGRESTORE -C -l $INDIR/pre-data.dmp | grep "DATABASE" > /tmp/createdb_pg_dumpbinary-$$.lst`;
 	if ($?) {
 		die "ERROR: pg_restore error to obtain dump information.\n";
@@ -251,6 +255,7 @@ if ($DUMP_CREATE)
 # it will be done at import of post data section.
 if (!$DATAONLY)
 {
+	print "Restoring database pre-data section without attaching partition.\n" if ($VERBOSE);
 	my $output = "-d $DBNAME";
 	my $creadb = '';
 	$creadb = '-C' if ($CREATEDB);
@@ -304,7 +309,7 @@ my %partitions = get_partition_list();
 # Retrieve list of schema.tables to restore.
 my %tbl_list = get_table_list();
 
-# Distribute all tables equally between all processes.
+print "Distributing all tables equally between all processes.\n" if ($JOBS and $VERBOSE);
 my %distributed_table = ();
 my $proc = 1;
 foreach my $s (sort keys %tbl_list)
@@ -353,6 +358,7 @@ foreach my $s (sort keys %tbl_list)
 }
 
 # Use the -j processes to restore tables data
+print "Restoring tables data\n" if ($VERBOSE);
 foreach my $p (sort keys %distributed_table)
 {
 
@@ -388,6 +394,7 @@ while (scalar keys %RUNNING_PIDS > 0)
 
 exit(1) if ($interrupt);
 
+print "Restoring sequences values.\n" if ($VERBOSE);
 # Restore the sequences values
 if (scalar keys %sequences)
 {
@@ -426,7 +433,7 @@ if (!$DATAONLY)
 	if ($OUTFILE) {
 		$output = "-f - >> $OUTFILE";
 	}
-	print "Restoring post data section.\n";
+	print "Restoring post data section.\n" if ($VERBOSE);
 	`$PGRESTORE $PG_OPT $PG_FILTER -j $JOBS $INDIR/post-data.dmp $output`;
 	if ($?) {
 		die "ERROR: pg_restore error for post-data section.\n";
@@ -472,6 +479,7 @@ options:
   -T, --exclude-table TABLE    do NOT restore the named table.
   -u, --user NAME              connect as specified database user.
   -v, --version                show program version.
+  -V, --verbose                show progress information.
   --help                       show usage.
   --disable-triggers           disable triggers during data restore.
   --truncate                   truncate the table before importing the data.
