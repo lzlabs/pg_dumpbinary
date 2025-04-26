@@ -14,7 +14,7 @@ use strict;
 use Getopt::Long  qw(:config bundling no_ignore_case_always);
 use POSIX qw(locale_h sys_wait_h _exit);
 use Time::HiRes qw/usleep/;
-use File::Spec qw/ tmpdir /;
+use File::Spec;
 use File::Temp qw/ tempfile /;
 use DBI;
 use DBD::Pg;
