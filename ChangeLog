@@ -1,3 +1,21 @@
+2025-06-04 - version 2.20
+
+This is a maintenance release that fixes some issues reported by users since
+last release and adds an new command line option -V, --verbose to the
+pg_restorebinary command.
+
+  - Change directory to writable one when sudo -u is used to avoid
+    pg_restore to complain about "could not change directory" when
+    the current directory is not writable by the running user. In
+    this case pg_dumpbinary and pg_restorebinary will require an
+    absolute path respectively for output and input directory.
+    Thanks to Simon Beck for the report.
+  - Do not import the tmpdir method when importing File::Spec.
+  - Add -V, --verbose option to pg_restorebinary. Thanks to Simon Beck for
+    the report.
+  - Fix returned error code when no input directory or missing parameters.
+    Thanks to Simon Beck for the report.
+
 2025-04-08 - version 2.19
 
 This is a maintenance release that fixes a major bug when dumping data
