@@ -205,6 +205,16 @@ if ($DBUSER)
 my $CURDATE = get_current_date();
 my $OUTDIR = $ARGV[0] || 'binary_bkup_' . $CURDATE;
 
+# Change directory to writable one for pg_restore
+if (! -w ".")
+{
+	# Force absolute path for input directory
+	if ($OUTDIR !~ /^\//) {
+		die "ERROR: the output directory must be an absolute path.\n";
+	}
+	chdir $TMP_DIR;
+}
+
 # Create output directory
 if (!-d $OUTDIR)
 {

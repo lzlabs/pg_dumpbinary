@@ -193,6 +193,17 @@ if ($DBUSER)
 # Store input directory name
 my $INDIR = $ARGV[0] || 0;
 
+# Change directory to writable one for pg_restore
+if (! -w ".")
+{
+	# Force absolute path for input directory
+	if ($INDIR !~ /^\//) {
+		die "ERROR: the input directory must be an absolute path.\n";
+	}
+        chdir $TMP_DIR;
+}
+
+# We need to retrieve the version of pg_restore about
 # Check input directory
 if (!-d $INDIR)
 {
@@ -207,7 +218,6 @@ else
 	}
 }
 
-# We need to retrieve the version of pg_restore about
 # option -f - that is required with PG >= v12
 my $pgrestore_version = eval_command("$PGRESTORE --version | awk '{print \$3}'");
 chomp($pgrestore_version);
